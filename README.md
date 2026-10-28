@@ -5,7 +5,7 @@ Todas as APIs são simuladas com MSW na camada de rede.
 
 **Demo:** https://nft-marketplace-one-fawn.vercel.app · **Repositório:** https://github.com/joaogabriel-11/nft-marketplace
 
-> Em construção. Prontos: API simulada completa, Início (catálogo com busca, filtros, ordenação e paginação na URL), Detalhe do NFT, Login e Cadastro, em desktop e mobile. Carrinho, pagamento, tempo real e conta entram nos próximos blocos.
+> Em construção. Prontos: API simulada completa, Início (catálogo com busca, filtros, ordenação e paginação na URL), Detalhe do NFT, Login, Cadastro, Carrinho, Pagamento e Confirmação de pedido, em desktop e mobile. Tempo real (Socket.IO), perfil e carteiras entram nos próximos blocos.
 
 ## Credenciais fictícias
 

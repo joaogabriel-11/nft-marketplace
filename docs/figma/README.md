@@ -11,13 +11,15 @@ Arquivo: `mgWeglbKWTfe0McH6R7RYF` · página `0:1` "Marketplace de NFTs GreenMin
 | Detalhes do NFT | `10:244` (h 2246) | `15:5536` | Implementado (Bloco 2) |
 | Login | `9:115` (modal sobre o mercado) | `16:1022` (tela cheia) | Implementado (Bloco 2) |
 | Cadastro | `9:1022` (modal sobre o mercado) | `16:1228` (tela cheia) | Implementado (Bloco 2) |
-| Carrinho de NFTs | `11:1278` (h 1754) | `16:360` | Bloco 3 |
-| Pagamento | `11:2862` (h 1657) | `16:748` | Bloco 3 |
-| Confirmação de Pedido | `11:4385` (h 1657) | — | Bloco 3 |
+| Carrinho de NFTs | `11:1278` (h 1754) | `16:360` | Implementado (Bloco 3) |
+| Pagamento | `11:2862` (h 1657) | `16:748` | Implementado (Bloco 3) |
+| Confirmação de Pedido | `11:4385` (modal sobre o pagamento) | — | Implementado (Bloco 3) |
 | Perfil do Colecionador | `9:1238` (h 1080) | — | Bloco 6 |
 | Carteiras | `9:1670` (h 1080) | — | Bloco 6 |
 
-Screenshots salvos: `desktop-inicio.png`.
+Screenshots salvos: `desktop-inicio.png`. Estrutura completa de todos os frames (nomes, textos, posições, tamanhos): `metadata.xml`.
+
+> **Limite do MCP atingido (28/10/2026, plano Starter).** Confirmação desktop e os mobiles de Carrinho e Pagamento foram implementados a partir do cache de metadados (estrutura, textos e medidas). Perfil e Carteiras (Bloco 6) também dependem só desse cache, a menos que a cota seja renovada.
 
 ## Componentes do Figma (com descrição no arquivo)
 

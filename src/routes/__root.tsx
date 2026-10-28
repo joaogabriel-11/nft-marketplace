@@ -24,7 +24,8 @@ const DIVIDER_ROUTES = ["/", "/login", "/cadastro"];
 
 function RootLayout() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const isDetail = pathname.startsWith("/nfts/");
+  // Frames mobile do fluxo de compra (detalhe, carrinho, pagamento) não têm a barra inferior.
+  const hideTabBar = ["/nfts/", "/carrinho", "/pagamento", "/pedidos/"].some((prefix) => pathname.startsWith(prefix));
 
   return (
     <>
@@ -37,12 +38,12 @@ function RootLayout() {
       {/* Figma: 32px entre header e conteúdo; 96px entre o conteúdo e o footer. */}
       <div className="mx-auto flex min-h-dvh w-full max-w-[1248px] flex-col gap-6 px-4 pt-6 md:gap-8 md:px-6 [&>footer]:lg:mt-16">
         <SiteHeader divider={DIVIDER_ROUTES.includes(pathname)} />
-        <main id="conteudo" tabIndex={-1} className={cn("flex-1 outline-none", !isDetail && "pb-[140px] md:pb-0")}>
+        <main id="conteudo" tabIndex={-1} className={cn("flex-1 outline-none", !hideTabBar && "pb-[140px] md:pb-0")}>
           <Outlet />
         </main>
         <SiteFooter />
       </div>
-      {!isDetail && <MobileTabBar />}
+      {!hideTabBar && <MobileTabBar />}
       <Toaster
         theme="dark"
         position="top-center"

@@ -51,10 +51,12 @@ test.describe("detalhe do NFT", () => {
     await visible(page).getByRole("button", { name: "Aumentar quantidade" }).filter({ visible: true }).click();
     await visible(page).getByRole("button", { name: /^(COMPRAR|Comprar NFT)$/ }).filter({ visible: true }).click();
     await expect(page).toHaveURL("/carrinho");
-    await expect(page.getByText("Emerald Ape #042 · 1/50 · 2×")).toBeVisible();
+    const line = page.getByRole("listitem").filter({ hasText: "Emerald Ape #042" });
+    await expect(line.getByRole("status")).toHaveText("2");
+    await expect(line).toContainText("1/50");
     // Visitante: o carrinho sobrevive ao refresh (id do carrinho de visitante no navegador).
     await page.reload();
-    await expect(page.getByText("Emerald Ape #042 · 1/50 · 2×")).toBeVisible();
+    await expect(line.getByRole("status")).toHaveText("2");
   });
 
   test("favorito com falha da API volta ao estado anterior (rollback otimista)", async ({ page }) => {

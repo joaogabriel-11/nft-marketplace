@@ -113,6 +113,22 @@ Erros transversais simulados pelos cenários: 401, 403, 500 `internal_error`, 50
 - **Inputs de filtro e edição** são checkbox e radio nativos invisíveis cobrindo a linha ou pílula inteira: teclado, leitor de tela e clique funcionam sem ARIA extra, e o estado ativo tem marcador visual além da cor.
 - **Imagens:** as 4 artes do Figma, convertidas para WebP em 512 e 1024 px (`scripts/optimize-images.mjs`), com `srcset`, dimensões explícitas e `fetchpriority=high` só na primeira dobra.
 
+## Carrinho e checkout
+
+- **Estado do carrinho:** fica no servidor simulado (de visitante ou do usuário) e o cache guarda a resposta inteira. Toda mutation (adicionar, quantidade, remover, cupom) responde com o carrinho recalculado e é gravada com `setQueryData`; não há totais calculados no cliente.
+- **Fila de mutations:** as mutations do carrinho compartilham `scope: { id: "cart" }`, então o Query as executa em série, na ordem dos cliques. O `+`/`−` tem debounce de 350 ms por linha: cliques seguidos viram uma requisição com o valor final.
+- **Avisos por item:** vêm do `status` de cada item na API (`price_changed`, `quantity_exceeds`, `sold_out`) e têm ação explícita (aceitar o novo preço, ajustar a quantidade ou remover). Enquanto houver aviso, o checkout fica bloqueado.
+- **Pagamento em etapas, num único "Confirmar compra":**
+  1. grava a carteira só se o formulário diferir do cadastro;
+  2. conecta a carteira (a recusa aparece inline, com nova tentativa);
+  3. cria a cotação;
+  4. abre a revisão com prazo de validade.
+- **Revalidação no envio:** `409 quote_outdated` ou `quote_expired` trocam a cotação na revisão pela cotação nova, listam as mudanças e exigem um novo clique ("Confirmar novos valores"). Uma edição esgotada (`insufficient_availability`) leva de volta ao carrinho.
+- **Idempotência:** a chave é gerada por intenção (cotação + carteira) e guardada em `localStorage`. Clique repetido, reenvio automático (até 3, só em timeout ou erro de rede) e refresh usam a mesma chave, e o servidor devolve o mesmo pedido. Uma cotação nova é uma nova intenção e recebe chave nova.
+- **Retomada do pedido:** o pedido criado e ainda pendente fica registrado por usuário. Carrinho e pagamento mostram "Você tem um pedido em processamento", e `/pedidos/$id` faz polling a cada 1,5 s até um estado terminal; no Bloco 4 o socket adianta isso e o polling fica como reserva. No estado terminal, o registro é limpo e o carrinho é recarregado (a API já removeu só o que foi comprado ou devolveu o estoque).
+- **Rascunho do pagamento:** fica no `localStorage` por usuário. Uma sessão que expira no meio leva ao login com `redirect=/pagamento`, e o formulário volta preenchido.
+- **Recibo:** mostra só o snapshot do pedido. "Confirmado" aparece apenas quando a API devolve `status: "confirmed"`. Um pedido de outra conta mostra "Pedido não encontrado" (403 da API).
+
 ## Desvios do Figma e ações fora do escopo
 
 | Item | Decisão |
@@ -124,6 +140,11 @@ Erros transversais simulados pelos cenários: 401, 403, 500 `internal_error`, 50
 | Estados não desenhados (erro, vazio, esgotado, 404) | Seguem as superfícies e tipografia do Figma. |
 | Busca no desktop | O Figma só mostra a lupa. Ela abre um dialog de busca que grava `?q=` no catálogo. |
 | Criadores, Aprenda, blog, links do footer, newsletter, login social, "Esqueceu a senha?", leitor de QR e lista de favoritos na barra mobile | Fora do escopo: exibem um aviso de "não disponível nesta demonstração", sem simular sucesso. Redes sociais e compartilhamento abrem os sites reais. |
+| Pagamento: campos obrigatórios | O Figma marca "Código de indicação" e "Nome ENS (.eth)" como obrigatórios. Na implementação, a indicação é opcional, e o nome ENS virou o campo opcional "ENS ou carteira secundária", porque nenhum dos dois é necessário para pagar. |
+| Pagamento: "Tipo de carteira" e "Carteira e rede" | O Figma mostra o mesmo dado em dois controles (select e lista de provedores). Os dois ficam ligados ao mesmo campo do formulário. |
+| Pagamento: quantos passos | O Figma tem um único "Confirmar compra". A implementação acrescenta um dialog de revisão com a cotação, exigido pelo desafio ("permitir revisão antes do envio"). |
+| Confirmação | No Figma é um modal sobre o pagamento. A implementação é uma página própria (`/pedidos/$id`), com o mesmo cartão, porque precisa abrir por link direto e sobreviver a refresh. O ícone "thank-you" foi substituído pelo `CheckCircle2` do lucide: o limite de chamadas do MCP do Figma (plano Starter) acabou antes da exportação. Pendente e recusado não estão desenhados e seguem o mesmo cartão. |
+| Mobile do carrinho e do pagamento | Implementados a partir da estrutura salva no cache de metadados do Figma (nomes, textos e medidas), sem o código gerado, pelo mesmo limite. A marca da Coinbase usa a letra "C", como WalletConnect e MetaMask. |
 | Footer no mobile | Os frames mobile não têm footer (a barra inferior ocupa o rodapé), então ele só aparece a partir do tablet. |
 
 ## Decisões

@@ -15,7 +15,7 @@ type NavKey = "home" | "market";
 /** "Início" ativo na home e telas de conta; "Mercado" no fluxo de compra (regra do Figma). */
 function useActiveNav(): NavKey {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  return pathname.startsWith("/nfts") || pathname.startsWith("/carrinho") || pathname.startsWith("/pagamento")
+  return ["/nfts", "/carrinho", "/pagamento", "/pedidos"].some((prefix) => pathname.startsWith(prefix))
     ? "market"
     : "home";
 }

@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import type { Category, Network } from "@/api/contracts";
+import type { Category, Network, WalletType } from "@/api/contracts";
 
 /** "1.19" → "1.19 ETH". Mantém a precisão da API (string), sem converter para number. */
 export function formatEth(value: string) {
@@ -28,6 +28,12 @@ export const NETWORK_LABELS: Record<Network, string> = {
   ethereum: "Ethereum",
   polygon: "Polygon",
   solana: "Solana",
+};
+
+export const WALLET_TYPE_LABELS: Record<WalletType, string> = {
+  metamask: "MetaMask",
+  walletconnect: "WalletConnect",
+  coinbase: "Coinbase Wallet",
 };
 
 /** Artes servidas em 512 e 1024 px: deriva o srcset da URL base da API. */
