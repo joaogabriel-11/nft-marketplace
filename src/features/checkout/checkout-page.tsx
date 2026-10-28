@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useIsMutating } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -30,9 +31,34 @@ import {
   type CheckoutFormValues,
 } from "./checkout-form";
 import { PendingOrderBanner } from "./pending-order-banner";
-import { useConnectWallet, useCreateOrder, useCreateQuote, useDisconnectWallet, useSaveWallet, useWallets } from "./queries";
+import { CREATE_ORDER_KEY, useConnectWallet, useCreateOrder, useCreateQuote, useDisconnectWallet, useSaveWallet, useWallets } from "./queries";
 import { ReviewDialog } from "./review-dialog";
 import { checkoutStorage } from "./storage";
+import { useRealtime } from "@/lib/realtime/store";
+
+/** Diferenças entre a cotação revisada e a nova, para o usuário confirmar o que mudou. */
+function diffQuotes(previous: Quote, fresh: Quote): QuoteOutdatedDetails["changes"] {
+  const changes: QuoteOutdatedDetails["changes"] = [];
+  for (const item of previous.items) {
+    const now = fresh.items.find((i) => i.editionId === item.editionId);
+    if (!now) {
+      changes.push({ type: "unavailable", nftId: item.nftId, editionId: item.editionId, message: `${item.name} não está mais disponível` });
+    } else if (now.unitPriceEth !== item.unitPriceEth) {
+      changes.push({
+        type: "price_changed",
+        nftId: item.nftId,
+        editionId: item.editionId,
+        message: `${item.name}: preço mudou de ${item.unitPriceEth} para ${now.unitPriceEth} ETH`,
+      });
+    } else if (now.quantity !== item.quantity) {
+      changes.push({ type: "quantity_reduced", nftId: item.nftId, editionId: item.editionId, message: `${item.name}: quantidade ajustada para ${now.quantity}` });
+    }
+  }
+  if (!changes.length && previous.totals.totalEth !== fresh.totals.totalEth) {
+    changes.push({ type: "totals_changed", message: "O total foi atualizado." });
+  }
+  return changes;
+}
 
 type Step = "idle" | "saving" | "connecting" | "quoting";
 interface Connection {
@@ -57,6 +83,8 @@ export function CheckoutPage() {
   const { user } = useSession();
   const cart = useCart();
   const wallets = useWallets();
+  // Pedido em envio: o carrinho pode esvaziar antes da resposta (liquidação via tempo real).
+  const submittingOrder = useIsMutating({ mutationKey: CREATE_ORDER_KEY }) > 0;
 
   if (cart.isPending || wallets.isPending) return <CheckoutSkeleton />;
   if (cart.isError || wallets.isError) {
@@ -66,6 +94,13 @@ export function CheckoutPage() {
         <p className="text-14 text-text-secondary">{errorMessage(cart.error ?? wallets.error)}</p>
         <Button onClick={() => void Promise.all([cart.refetch(), wallets.refetch()])}>Tentar novamente</Button>
       </div>
+    );
+  }
+  if (cart.data.items.length === 0 && submittingOrder) {
+    return (
+      <p role="status" className="py-16 text-center text-16 font-bold">
+        Processando pagamento…
+      </p>
     );
   }
   if (cart.data.items.length === 0) {
@@ -125,6 +160,33 @@ function CheckoutForm({ userId, wallets }: { userId: string; wallets: { primary:
   const [orderError, setOrderError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(!wallet);
   const [reviewWalletId, setReviewWalletId] = useState<string | null>(null);
+
+  // Tempo real: um nft.updated de item da cotação aberta a torna desatualizada.
+  // A API também rejeitaria a cotação antiga (409); aqui o usuário é avisado antes de tentar.
+  const lastNftChange = useRealtime((state) => state.nftChanges.at(-1));
+  const [staleSince, setStaleSince] = useState<number | null>(null);
+  const [handledChange, setHandledChange] = useState(lastNftChange);
+  if (lastNftChange !== handledChange) {
+    setHandledChange(lastNftChange);
+    if (lastNftChange && quote && Date.parse(quote.createdAt) <= lastNftChange.at && quote.items.some((i) => i.nftId === lastNftChange.nftId)) {
+      setStaleSince(lastNftChange.at);
+    }
+  }
+  const quoteStale = staleSince !== null;
+
+  async function refreshQuote() {
+    if (!quote) return;
+    const previous = quote;
+    try {
+      const fresh = await createQuote.mutateAsync();
+      setQuote(fresh);
+      setChanges(diffQuotes(previous, fresh));
+      setStaleSince(null);
+    } catch (error) {
+      setStaleSince(null);
+      handleQuoteError(error);
+    }
+  }
 
   useEffect(() => {
     checkoutStorage.draft.set(userId, { ...values, slot });
@@ -188,6 +250,7 @@ function CheckoutForm({ userId, wallets }: { userId: string; wallets: { primary:
         const fresh = await createQuote.mutateAsync();
         setQuote(fresh);
         setChanges([]);
+        setStaleSince(null);
         setReviewWalletId(target.id);
         setReviewOpen(true);
       } catch (error) {
@@ -240,11 +303,8 @@ function CheckoutForm({ userId, wallets }: { userId: string; wallets: { primary:
         },
       },
       {
-        onSuccess: (order) => {
-          checkoutStorage.draft.clear(userId);
-          setReviewOpen(false);
-          void navigate({ to: "/pedidos/$id", params: { id: order.id } });
-        },
+        // Navegação e limpeza do rascunho ficam no onSuccess da mutation (useCreateOrder).
+        onSuccess: () => setReviewOpen(false),
         onError: (error) => {
           if (isApiError(error) && (error.code === "quote_outdated" || error.code === "quote_expired")) {
             const details = quoteOutdatedDetailsSchema.safeParse(error.details);
@@ -523,6 +583,9 @@ function CheckoutForm({ userId, wallets }: { userId: string; wallets: { primary:
           network: (values.network || "ethereum") as Wallet["network"],
         }}
         submitting={createOrder.isPending}
+        stale={quoteStale}
+        refreshing={createQuote.isPending}
+        onRefresh={() => void refreshQuote()}
         error={orderError}
         onConfirm={confirmOrder}
         onClose={() => setReviewOpen(false)}

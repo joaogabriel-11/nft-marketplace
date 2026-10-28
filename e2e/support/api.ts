@@ -72,6 +72,20 @@ export async function openApp(page: Page, path = "/", scenario = "instant") {
   await expect.poll(async () => (await call(page, "GET", "/health")).status).toBe(200);
 }
 
+/**
+ * Adiciona itens ao carrinho de visitante da própria app: espera a app criar o carrinho
+ * (o header busca /cart ao carregar) e usa o mesmo id, sem disputar o localStorage com ela.
+ */
+export async function addToGuestCart(page: Page, items: Array<{ nftId: string; editionId: string; quantity: number }>) {
+  const handle = await page.waitForFunction(() => localStorage.getItem("kurio:guest-cart"));
+  const guestCartId = (await handle.jsonValue()) as string;
+  for (const item of items) {
+    const result = await call(page, "POST", "/cart/items", { headers: { "X-Guest-Cart-Id": guestCartId }, body: item });
+    expect(result.status).toBe(201);
+  }
+  return guestCartId;
+}
+
 /** Recarrega e espera o MSW voltar a controlar a página (o estado persiste no localStorage). */
 export async function reloadApp(page: Page) {
   await page.reload();

@@ -5,3 +5,4 @@ export * from "./common";
 export * from "./nft";
 export * from "./profile";
 export * from "./wallets";
+export * from "./realtime";

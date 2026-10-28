@@ -12,6 +12,10 @@ interface ReviewDialogProps {
   changes: QuoteOutdatedDetails["changes"];
   wallet: { type: WalletType; address: string; network: Network };
   submitting: boolean;
+  /** Um evento em tempo real mudou um item desta cotação: confirmar exige atualizar antes. */
+  stale: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
   error: string | null;
   onConfirm: () => void;
   onClose: () => void;
@@ -29,7 +33,20 @@ function useSecondsLeft(expiresAt: string | undefined) {
 }
 
 /** Revisão antes do envio: o usuário confirma exatamente a cotação que a API vai validar. */
-export function ReviewDialog({ open, quote, changes, wallet, submitting, error, onConfirm, onClose, onBackToCart }: ReviewDialogProps) {
+export function ReviewDialog({
+  open,
+  quote,
+  changes,
+  wallet,
+  submitting,
+  stale,
+  refreshing,
+  onRefresh,
+  error,
+  onConfirm,
+  onClose,
+  onBackToCart,
+}: ReviewDialogProps) {
   const secondsLeft = useSecondsLeft(quote?.expiresAt);
   const expired = !!quote && secondsLeft === 0;
   const minutes = Math.floor(secondsLeft / 60);
@@ -56,6 +73,12 @@ export function ReviewDialog({ open, quote, changes, wallet, submitting, error, 
               <li key={`${change.type}-${change.editionId ?? index}`}>• {change.message}</li>
             ))}
           </ul>
+        )}
+
+        {stale && quote && (
+          <p role="alert" className="mt-4 rounded-[6px] border border-primary/70 bg-primary/10 p-4 text-13">
+            O preço ou a disponibilidade de um item mudou agora há pouco. Atualize a cotação para ver os novos valores antes de pagar.
+          </p>
         )}
 
         {quote ? (
@@ -112,9 +135,15 @@ export function ReviewDialog({ open, quote, changes, wallet, submitting, error, 
               <Button variant="outline" onClick={onClose} disabled={submitting}>
                 Voltar e editar
               </Button>
-              <Button onClick={onConfirm} disabled={submitting} aria-describedby={undefined}>
-                {submitting ? "Processando pagamento…" : changes.length ? "Confirmar novos valores" : "Confirmar pagamento"}
-              </Button>
+              {stale ? (
+                <Button onClick={onRefresh} disabled={refreshing}>
+                  {refreshing ? "Atualizando cotação…" : "Atualizar cotação"}
+                </Button>
+              ) : (
+                <Button onClick={onConfirm} disabled={submitting}>
+                  {submitting ? "Processando pagamento…" : changes.length ? "Confirmar novos valores" : "Confirmar pagamento"}
+                </Button>
+              )}
             </>
           ) : (
             <Button onClick={onBackToCart}>Voltar ao carrinho</Button>

@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { buttonVariants } from "@/components/ui/button";
 import { sessionQueryOptions } from "@/features/auth/session";
+import { RealtimeBridge } from "@/lib/realtime/realtime-bridge";
 import { cn } from "@/lib/utils";
 
 export interface RouterContext {
@@ -44,6 +45,7 @@ function RootLayout() {
         <SiteFooter />
       </div>
       {!hideTabBar && <MobileTabBar />}
+      <RealtimeBridge />
       <Toaster
         theme="dark"
         position="top-center"

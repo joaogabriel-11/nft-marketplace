@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { call, CREDENTIALS, expect, openApp, setScenario, test } from "../support/api";
+import { addToGuestCart, call, CREDENTIALS, expect, openApp, setScenario, test } from "../support/api";
 
 const EMERALD = { nftId: "emerald-ape-042", editionId: "emerald-ape-042--1-50" };
 const GOLDEN = { nftId: "golden-beat-207", editionId: "golden-beat-207--aberta" };
@@ -62,10 +62,10 @@ test.describe("compra", () => {
 test.describe("carrinho", () => {
   test("quantidade, remoção, cupom e persistência após refresh", async ({ page, isMobile }) => {
     await openApp(page);
-    // Carrinho de visitante criado pela API; o navegador guarda o id como a app faria.
-    const guest = await call(page, "POST", "/cart/items", { body: { ...EMERALD, quantity: 1 } });
-    await page.evaluate((id) => localStorage.setItem("kurio:guest-cart", id), guest.body.id);
-    await call(page, "POST", "/cart/items", { headers: { "X-Guest-Cart-Id": guest.body.id }, body: { ...GOLDEN, quantity: 1 } });
+    await addToGuestCart(page, [
+      { ...EMERALD, quantity: 1 },
+      { ...GOLDEN, quantity: 1 },
+    ]);
     await page.goto("/carrinho");
 
     const emerald = page.getByRole("listitem").filter({ hasText: "Emerald Ape #042" });
@@ -98,9 +98,7 @@ test.describe("carrinho", () => {
 
   test("preço alterado no catálogo pede confirmação no carrinho", async ({ page }) => {
     await openApp(page);
-    // Carrinho de visitante criado pela API; o navegador guarda o id como a app faria.
-    const guest = await call(page, "POST", "/cart/items", { body: { ...EMERALD, quantity: 1 } });
-    await page.evaluate((id) => localStorage.setItem("kurio:guest-cart", id), guest.body.id);
+    await addToGuestCart(page, [{ ...EMERALD, quantity: 1 }]);
     await call(page, "PATCH", `/__dev/nfts/${EMERALD.nftId}/editions/${EMERALD.editionId}`, { body: { priceEth: "1.5" } });
     await page.goto("/carrinho");
 

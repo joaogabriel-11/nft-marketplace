@@ -8,6 +8,8 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
   // Base das chamadas REST. Relativa para funcionar em qualquer host com MSW.
   VITE_API_URL: z.string().min(1).default("/api"),
+  // Endpoint do Socket.IO; vazio = mesma origem da página (onde o MSW intercepta o WebSocket).
+  VITE_SOCKET_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
 });
 
 const parsed = envSchema.safeParse(import.meta.env);

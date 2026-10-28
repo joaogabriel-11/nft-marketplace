@@ -5,7 +5,7 @@ Todas as APIs são simuladas com MSW na camada de rede.
 
 **Demo:** https://nft-marketplace-one-fawn.vercel.app · **Repositório:** https://github.com/joaogabriel-11/nft-marketplace
 
-> Em construção. Prontos: API simulada completa, Início (catálogo com busca, filtros, ordenação e paginação na URL), Detalhe do NFT, Login, Cadastro, Carrinho, Pagamento e Confirmação de pedido, em desktop e mobile. Tempo real (Socket.IO), perfil e carteiras entram nos próximos blocos.
+> Em construção. Prontos: API simulada completa, Início (catálogo com busca, filtros, ordenação e paginação na URL), Detalhe do NFT, Login, Cadastro, Carrinho, Pagamento e Confirmação de pedido, em desktop e mobile. Tempo real via Socket.IO (preço, disponibilidade e pedidos). Perfil e carteiras entram nos próximos blocos.
 
 ## Credenciais fictícias
 
@@ -50,7 +50,17 @@ Controles da simulação. Eles também funcionam na demo, sem latência nem falh
 | Restaurar os dados iniciais | `?mock-reset` na URL, ou `POST /api/__dev/reset` com `{ "scenario": "<nome>" }` opcional |
 | Ver o cenário ativo e a lista | `GET /api/__dev/scenario` |
 | Expirar a sessão do token enviado | `POST /api/__dev/sessions/expire` |
-| Alterar preço ou estoque de uma edição | `PATCH /api/__dev/nfts/:nftId/editions/:editionId` com `{ "priceEth": "1.5", "available": 0 }` |
+| Alterar preço ou estoque de uma edição (emite `nft.updated` em tempo real) | `PATCH /api/__dev/nfts/:nftId/editions/:editionId` com `{ "priceEth": "1.5", "available": 0 }` |
+| Ver conexões Socket.IO e últimos eventos | `GET /api/__dev/realtime` |
+| Derrubar o tempo real (e recusar reconexões por N ms) | `POST /api/__dev/realtime/disconnect` com `{ "blockMs": 5000 }` |
+| Pausar ou retomar a entrega de eventos (eventos perdidos) | `POST /api/__dev/realtime/pause` com `{ "paused": true }` |
+| Reenviar o último evento (duplicata) ou um evento antigo | `POST /api/__dev/realtime/duplicate` · `POST /api/__dev/realtime/stale` |
+
+### Reproduzir o cenário de tempo real
+
+1. Adicione um NFT ao carrinho (por exemplo, Emerald Ape #042, edição 1/50) e abra `/carrinho`.
+2. No console do DevTools dessa mesma aba (o servidor simulado vive na aba), rode `fetch("/api/__dev/nfts/emerald-ape-042/editions/emerald-ape-042--1-50", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priceEth: "1.5" }) })`.
+3. O carrinho mostra o aviso de preço e o resumo novo, e o checkout bloqueia a cotação antiga.
 
 Contratos completos em [ARCHITECTURE.md](./ARCHITECTURE.md#contratos-rest).
 
@@ -72,6 +82,7 @@ npm run dev        # http://localhost:5173, com mocks ligados
 |---|---|---|
 | `VITE_ENABLE_MOCKS` | `true` | Liga o MSW (REST e Socket.IO). Também fica `true` no deploy. |
 | `VITE_API_URL` | `/api` | Base das chamadas REST. |
+| `VITE_SOCKET_URL` | (mesma origem) | Endpoint do Socket.IO. Vazio usa a origem da página, onde o MSW intercepta o WebSocket. |
 
 Os valores padrão estão em `.env`. Para sobrescrever localmente, use `.env.local` (veja `.env.example`).
 

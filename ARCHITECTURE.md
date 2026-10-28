@@ -129,6 +129,42 @@ Erros transversais simulados pelos cenários: 401, 403, 500 `internal_error`, 50
 - **Rascunho do pagamento:** fica no `localStorage` por usuário. Uma sessão que expira no meio leva ao login com `redirect=/pagamento`, e o formulário volta preenchido.
 - **Recibo:** mostra só o snapshot do pedido. "Confirmado" aparece apenas quando a API devolve `status: "confirmed"`. Um pedido de outra conta mostra "Pedido não encontrado" (403 da API).
 
+## Tempo real (Socket.IO)
+
+### Eventos
+
+| Evento | Quem recebe | Payload |
+|---|---|---|
+| `nft.updated` | Todas as conexões, inclusive de visitante | Card do NFT + edições (preço, disponibilidade, `maxPerOrder`) |
+| `order.updated` | Só as conexões do dono do pedido | Pedido completo (snapshot, status, `txHash`) + `userId` |
+
+Envelope comum: `{ eventId, type, resourceId, version, occurredAt, payload }`, validado com zod no cliente (`src/api/contracts/realtime.ts`). Os eventos são gerados a partir do canal de mudanças do banco simulado (`db.write` → `DbChange`), o mesmo estado que a REST devolve. Por isso REST e eventos nunca divergem.
+
+### Regras no cliente (`src/lib/realtime`)
+
+- **Uma conexão por sessão.** O visitante conecta sem token e recebe só `nft.updated`. Login ou troca de usuário abre uma conexão nova com o novo token. O logout encerra a conexão pelo `onSessionEnd` e remove todos os listeners (`removeAllListeners` no socket e no Manager).
+- **Deduplicação:** um `eventId` já visto é descartado (entrega duplicada).
+- **Ordem:** guarda a última `version` aplicada por recurso, e evento com versão menor ou igual é descartado. A atualização do cache também compara com a versão do dado em cache, então um evento atrasado não sobrescreve um refetch mais novo.
+- **`nft.updated`:**
+  - atualiza no lugar o detalhe e os cards de listas e "relacionados";
+  - marca as listas como desatualizadas (`refetchType: "none"`), já que filtros de preço ou disponibilidade podem mudar o resultado;
+  - recarrega o carrinho pela REST se o NFT estiver nele (totais e avisos são da API) e anuncia a mudança por toast.
+- **Checkout:** um `nft.updated` de item da cotação aberta marca a revisão como desatualizada. O botão vira "Atualizar cotação" e só depois de revisar os novos valores é possível confirmar. A API rejeitaria a cotação antiga de qualquer forma (409).
+- **`order.updated`:** grava o pedido no cache (se for mais novo) e, no estado terminal, anuncia confirmação ou recusa, limpa o pedido pendente e recarrega o carrinho. Evento com `userId` diferente da sessão atual é descartado (defesa extra; o servidor já filtra).
+- **Reconexão:** backoff de 0,5 a 3 s. Ao reconectar, `invalidateQueries({ type: "active" })` refaz pela REST tudo que está na tela, cobrindo eventos perdidos durante a queda. Enquanto desconectado, aparece um toast "Reconectando…" e o pedido pendente volta a ser consultado a cada 1,5 s (com socket conectado, a cada 10 s, só como reserva).
+- O estado da conexão fica em `html[data-realtime]` (`connecting`, `connected`, `reconnecting` ou `idle`), para diagnóstico e para os testes.
+
+### Transporte nos mocks e limitações
+
+- O `socket.io-client` real conecta em `ws(s)://<origem>/socket.io/` só com `transports: ["websocket"]`. O MSW intercepta o WebSocket na própria aba; o long-polling do Engine.IO exigiria simular o protocolo HTTP e não é usado.
+- O cliente Socket.IO é carregado sob demanda depois do `worker.start()`. O `engine.io-client` captura `globalThis.WebSocket` ao ser importado; se entrasse no bundle principal, guardaria o WebSocket nativo antes de o MSW substituí-lo.
+- O `ws.link` aponta para a origem, porque o MSW remove o prefixo `/socket.io/` da URL antes de comparar.
+- O `@mswjs/socket.io-binding` codifica e decodifica os eventos, mas tem duas limitações que o servidor simulado completa:
+  - ele responde ao CONNECT do Socket.IO automaticamente, sem ler `auth`. Por isso o token vai na query do handshake e é validado antes de montar o binding; token inválido recebe `CONNECT_ERROR` (`44`). Num backend real, o token iria em `auth` e nunca na URL;
+  - ele anuncia `pingInterval` mas não envia ping. O mock envia ping a cada 20 s, senão o cliente derrubaria a conexão a cada 30 s.
+- O "servidor" vive na aba: não há tempo real entre abas ou dispositivos. Duas abas abertas têm bancos simulados independentes, que só se cruzam pelo `localStorage` no próximo carregamento. Vale o mesmo para a demo publicada.
+- Uma queda simulada aceita o transporte e fecha logo em seguida. O Manager do `socket.io-client` só agenda nova tentativa para quedas depois do `open` do Engine.IO; recusar antes disso deixaria o cliente parado até o timeout de 20 s.
+
 ## Desvios do Figma e ações fora do escopo
 
 | Item | Decisão |

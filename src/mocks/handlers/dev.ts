@@ -4,6 +4,7 @@ import { ethAmountSchema } from "@/api/contracts";
 import { db } from "../db/store";
 import { MockHttpError, noContent, parseBody } from "../lib/http";
 import { isScenarioName, scenario, SCENARIOS, type ScenarioName } from "../scenarios";
+import { realtimeControls } from "../realtime";
 import { mutateEdition } from "./orders";
 
 /**
@@ -31,6 +32,7 @@ export const devHandlers = [
   http.post(dev("/reset"), async ({ request }) => {
     const body = (await request.json().catch(() => ({}))) as { scenario?: string };
     db.reset();
+    realtimeControls.reset();
     scenario.set(isScenarioName(body.scenario) ? body.scenario : "default");
     return HttpResponse.json({ ok: true, scenario: scenario.name });
   }),
@@ -58,7 +60,27 @@ export const devHandlers = [
     return noContent();
   }),
 
-  /** Altera preço/disponibilidade de uma edição (gera nft.updated no Bloco 4). */
+  // --- Tempo real (Socket.IO simulado) ---
+  http.get(dev("/realtime"), () => HttpResponse.json(realtimeControls.status())),
+
+  /** Derruba as conexões; `blockMs` recusa reconexões por esse tempo (servidor fora do ar). */
+  http.post(dev("/realtime/disconnect"), async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as { blockMs?: number };
+    realtimeControls.disconnect(Math.max(0, Number(body.blockMs) || 0));
+    return noContent();
+  }),
+
+  /** Pausa a entrega: eventos gerados no período se perdem (a reconciliação REST cobre). */
+  http.post(dev("/realtime/pause"), async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as { paused?: boolean };
+    realtimeControls.pause(body.paused !== false);
+    return noContent();
+  }),
+
+  http.post(dev("/realtime/duplicate"), () => HttpResponse.json({ replayed: realtimeControls.duplicateLast() })),
+  http.post(dev("/realtime/stale"), () => HttpResponse.json({ replayed: realtimeControls.replayStale() })),
+
+  /** Altera preço/disponibilidade de uma edição (gera nft.updated). */
   http.patch<{ nftId: string; editionId: string }>(dev("/nfts/:nftId/editions/:editionId"), ({ request, params }) =>
     guard(async () => {
       const input = await parseBody(
