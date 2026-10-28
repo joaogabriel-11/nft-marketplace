@@ -12,8 +12,11 @@ async function outlineOf(locator: Locator) {
 
 test("pular para o conteúdo move o foco para o main com foco visível", async ({ page }) => {
   await openApp(page);
-  await page.keyboard.press("Tab");
   const skip = page.getByRole("link", { name: "Pular para o conteúdo" });
+  // A app renderiza depois do worker e da sessão; o primeiro Tab só vale com o layout montado.
+  await expect(skip).toBeAttached();
+  await expect(page.locator("#catalogo [role=status]")).toHaveText("45 NFTs encontrados");
+  await page.keyboard.press("Tab");
   await expect(skip).toBeFocused();
   expect(await outlineOf(skip)).not.toBe("none");
   await page.keyboard.press("Enter");
