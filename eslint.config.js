@@ -44,6 +44,11 @@ export default defineConfig([
     },
   },
   {
+    // Padrão shadcn: o arquivo do botão exporta também as variantes (usadas em <Link>).
+    files: ['src/components/ui/button.tsx'],
+    rules: { 'react-refresh/only-export-components': ['error', { allowExportNames: ['buttonVariants'] }] },
+  },
+  {
     // Arquivos de rota exportam `Route`; o plugin do TanStack Router cuida do HMR deles.
     files: ['src/routes/**/*.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' },

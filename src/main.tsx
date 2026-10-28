@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { installUnauthorizedHandler } from "@/features/auth/unauthorized-handler";
 import { env } from "@/lib/env";
 import { createQueryClient } from "@/lib/query-client";
 import { createAppRouter } from "@/router";
@@ -16,6 +17,7 @@ async function enableMocking() {
 
 const queryClient = createQueryClient();
 const router = createAppRouter(queryClient);
+installUnauthorizedHandler(queryClient, router);
 
 // Renderiza só depois do worker ativo, para a primeira requisição já ser interceptada.
 enableMocking().then(() => {

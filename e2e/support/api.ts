@@ -61,13 +61,28 @@ export async function setScenario(page: Page, name: string) {
   expect(result.status).toBe(200);
 }
 
+/**
+ * Abre a app com banco resetado e o cenário pedido (?mock-reset&scenario=...) e espera
+ * o service worker do MSW controlar a página, para toda requisição passar pelos mocks.
+ */
+export async function openApp(page: Page, path = "/", scenario = "instant") {
+  const separator = path.includes("?") ? "&" : "?";
+  await page.goto(`${path}${separator}mock-reset&scenario=${scenario}`);
+  await page.waitForFunction(() => !!navigator.serviceWorker?.controller);
+  await expect.poll(async () => (await call(page, "GET", "/health")).status).toBe(200);
+}
+
+/** Recarrega e espera o MSW voltar a controlar a página (o estado persiste no localStorage). */
+export async function reloadApp(page: Page) {
+  await page.reload();
+  await page.waitForFunction(() => !!navigator.serviceWorker?.controller);
+  await expect.poll(async () => (await call(page, "GET", "/health")).status).toBe(200);
+}
+
 /** Cada teste: página carregada, MSW ativo, banco resetado e cenário sem latência. */
 export const test = base.extend<{ api: Page }>({
   api: async ({ page }, use) => {
-    await page.goto("/");
-    await expect(page.getByRole("status")).toHaveText("API: ok");
-    const reset = await call(page, "POST", "/__dev/reset", { body: { scenario: "instant" } });
-    expect(reset.status).toBe(200);
+    await openApp(page);
     await use(page);
   },
 });

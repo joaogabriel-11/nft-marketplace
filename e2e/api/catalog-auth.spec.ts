@@ -1,4 +1,4 @@
-import { call, CREDENTIALS, expect, login, setScenario, test } from "../support/api";
+import { call, CREDENTIALS, expect, login, reloadApp, setScenario, test } from "../support/api";
 
 test.describe("catálogo", () => {
   test("lista paginada com facetas e contrato de ETH como string", async ({ api }) => {
@@ -122,7 +122,7 @@ test.describe("sessão e conta", () => {
       body: { displayName: "Ana R.", username: "ana.r", email: "ana@kurio.dev" },
     });
     expect(updated.body.displayName).toBe("Ana R.");
-    await api.reload();
+    await reloadApp(api);
     expect((await call(api, "GET", "/profile", { token })).body.username).toBe("ana.r");
 
     const wrong = await call(api, "POST", "/profile/password", {

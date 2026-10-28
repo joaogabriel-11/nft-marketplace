@@ -48,7 +48,9 @@ export interface NftRecord {
   category: Category;
   network: Network;
   imageKey: string;
-  description: string;
+  compareAtPriceEth: string | null;
+  summary: string;
+  description: string[];
   attributes: string[];
   contractAddress: string;
   royaltyPercent: number;

@@ -5,7 +5,7 @@ Todas as APIs são simuladas com MSW na camada de rede.
 
 **Demo:** https://nft-marketplace-one-fawn.vercel.app · **Repositório:** https://github.com/joaogabriel-11/nft-marketplace
 
-> Em construção: a API simulada está completa e as telas entram nos próximos blocos.
+> Em construção. Prontos: API simulada completa, Início (catálogo com busca, filtros, ordenação e paginação na URL), Detalhe do NFT, Login e Cadastro, em desktop e mobile. Carrinho, pagamento, tempo real e conta entram nos próximos blocos.
 
 ## Credenciais fictícias
 
@@ -86,6 +86,7 @@ Os valores padrão estão em `.env`. Para sobrescrever localmente, use `.env.loc
 | `npm run lint` | ESLint |
 | `npm run test:e2e` | Playwright (build, preview e testes em desktop e mobile). Relatório em `playwright-report/` |
 | `E2E_BASE_URL=<url> npm run test:e2e` | Roda a mesma suíte contra um deploy publicado, sem servidor local |
+| `node scripts/optimize-images.mjs <pasta>` | Regera os WebP das artes a partir dos PNGs exportados do Figma |
 | `npm run lighthouse` | Build e auditoria Lighthouse (3 medições por perfil). Relatórios em `lighthouse/reports/` |
 
 Veja também [ARCHITECTURE.md](./ARCHITECTURE.md).

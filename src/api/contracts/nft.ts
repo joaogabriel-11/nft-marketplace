@@ -15,7 +15,7 @@ export const categorySchema = z.enum([
   "colecionaveis",
   "generativo",
   "jogos",
-  "arquitetura",
+  "assinaturas",
   "utilidade",
 ]);
 export type Category = z.infer<typeof categorySchema>;
@@ -43,6 +43,10 @@ export const nftSummarySchema = z.object({
   imageUrl: z.string(),
   /** Menor preço entre as edições disponíveis (ou da primeira, se todas esgotadas). */
   priceEth: ethAmountSchema,
+  /** Preço anterior exibido riscado (promoção); null quando não há. */
+  compareAtPriceEth: ethAmountSchema.nullable(),
+  /** Selo "RARO" do card: atributo de raridade Raro ou Lendário. */
+  isRare: z.boolean(),
   available: z.boolean(),
   isNew: z.boolean(),
   listedAt: isoDateSchema,
@@ -51,9 +55,14 @@ export const nftSummarySchema = z.object({
 });
 export type NftSummary = z.infer<typeof nftSummarySchema>;
 
+/** Vistas da galeria: a obra inteira e recortes de detalhe da mesma arte. */
+export const imageViewSchema = z.enum(["full", "top", "center", "bottom"]);
+export type ImageView = z.infer<typeof imageViewSchema>;
+
 export const nftDetailSchema = nftSummarySchema.extend({
-  description: z.string(),
-  images: z.array(z.object({ url: z.string(), alt: z.string() })).min(1),
+  summary: z.string(),
+  description: z.array(z.string()).min(1),
+  images: z.array(z.object({ url: z.string(), alt: z.string(), view: imageViewSchema })).min(1),
   attributes: z.array(z.string()),
   contractAddress: z.string(),
   royaltyPercent: z.number().nonnegative(),

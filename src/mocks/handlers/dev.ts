@@ -25,6 +25,9 @@ const guard = async (fn: () => Response | Promise<Response>) => {
 };
 
 export const devHandlers = [
+  // Prontidão da simulação (usado pelos testes): sem latência, mesmo no cenário "slow".
+  http.get("*/api/health", () => HttpResponse.json({ status: "ok", scenario: scenario.name })),
+
   http.post(dev("/reset"), async ({ request }) => {
     const body = (await request.json().catch(() => ({}))) as { scenario?: string };
     db.reset();

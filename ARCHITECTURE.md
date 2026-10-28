@@ -89,6 +89,43 @@ Erros transversais simulados pelos cenários: 401, 403, 500 `internal_error`, 50
 - O interceptor do Axios envia o Bearer quando há token, e o `X-Guest-Cart-Id` quando não há. Um 401 numa requisição que levou token notifica os assinantes de `onUnauthorized`. A camada de auth (Bloco 2) usa isso para limpar o cache e redirecionar ao login com o destino preservado.
 - Trocar a senha encerra as outras sessões do usuário; a atual continua válida.
 
+## Estado na URL (catálogo)
+
+- `/` aceita `q`, `categories=a,b`, `networks=a,b`, `minPrice`, `maxPrice`, `tab`, `sort` e `page`. O `validateSearch` passa tudo pelo zod com `.catch()`: um link antigo ou editado à mão abre o catálogo com os padrões, em vez de quebrar. Os padrões (`tab=all`, `sort=recent`, `page=1`) são removidos da URL por `stripSearchParams`.
+- O router serializa a busca como query string simples (sem JSON e com vírgula literal), porque a URL é parte da interface.
+- Qualquer mudança de filtro, aba, ordenação ou busca volta para a página 1. A digitação na busca usa `replace` (não polui o histórico); filtros e páginas criam entradas novas, então voltar e avançar refazem o caminho.
+- Os parâmetros da URL são exatamente os da API e a chave do cache. As listas são ordenadas antes de entrar na chave, então `musica,fotografia` e `fotografia,musica` compartilham o cache.
+
+## Sessão na interface
+
+- A rota raiz chama `ensureQueryData(session)` antes da primeira tela, e o refresh recupera o usuário.
+- Rotas privadas usam `requireSession` no `beforeLoad`, que redireciona para `/login?redirect=<destino>`. O `redirect` só aceita caminhos internos, para evitar open redirect.
+- Um 401 numa requisição autenticada chama `clearSession`: executa os cleanups registrados (o socket entra no Bloco 4), remove `["user"]` do cache, apaga o token e leva ao login com `reason=expired` e o destino preservado. Várias falhas simultâneas geram um único redirecionamento.
+- No login ou cadastro, o carrinho de visitante é mesclado (`/cart/merge`) e o cache de visitante é descartado. A troca de usuário sem logout também limpa o cache do anterior (`applySession`).
+- **Favoritos:** atualização otimista com snapshot e rollback em `onError`, e `setQueryData` com a resposta da API no sucesso.
+
+### Bloco 2: início, detalhe e login
+
+- **Login e cadastro como modal sobre o mercado no desktop**, como no Figma. Ao fundo fica o Início, inerte (`aria-hidden` e foco preso no dialog). No mobile são tela cheia. Fechar (X ou Esc) volta ao `redirect`.
+- **Detalhe com loader:** `ensureQueryData` no loader garante acesso direto e refresh. Um 404 da API vira `notFound()` com página própria, e outros erros mostram a página de erro com nova tentativa. O `pendingComponent` é o mesmo esqueleto da tela.
+- **Respostas fora de ordem:** cada combinação de parâmetros tem sua chave, a requisição anterior é abortada pelo `signal` e `placeholderData` mantém a página anterior visível (com `aria-busy`) até a nova chegar.
+- **Skeletons** com as mesmas dimensões dos cards (`aspect-ratio`), sem deslocamento de layout. Com `prefers-reduced-motion`, o shimmer para.
+- **Inputs de filtro e edição** são checkbox e radio nativos invisíveis cobrindo a linha ou pílula inteira: teclado, leitor de tela e clique funcionam sem ARIA extra, e o estado ativo tem marcador visual além da cor.
+- **Imagens:** as 4 artes do Figma, convertidas para WebP em 512 e 1024 px (`scripts/optimize-images.mjs`), com `srcset`, dimensões explícitas e `fetchpriority=high` só na primeira dobra.
+
+## Desvios do Figma e ações fora do escopo
+
+| Item | Decisão |
+|---|---|
+| Galeria do detalhe | O Figma repete a mesma arte nas 4 miniaturas. A API devolve 4 vistas da obra (completa, superior, central e inferior) e a UI aplica o recorte. |
+| "Contrato" e "Direitos autorais" | No Figma os textos estão trocados entre os dois títulos. Na implementação, o endereço fica em "Contrato" e o royalty em "Direitos autorais". |
+| Preço riscado e selo RARO | O Figma mostra o selo com canto reto sobre o card arredondado e um preço "2.29 ETH" solto. Implementei o preço anterior como campo do contrato (`compareAtPriceEth`), riscado ao lado do preço atual, e o selo para NFTs com atributo Raro ou Lendário. |
+| Estado "favoritado" | Não está desenhado. Usei o mesmo botão com fundo `primary/15` e o texto "Favoritado" (mais `aria-pressed`). |
+| Estados não desenhados (erro, vazio, esgotado, 404) | Seguem as superfícies e tipografia do Figma. |
+| Busca no desktop | O Figma só mostra a lupa. Ela abre um dialog de busca que grava `?q=` no catálogo. |
+| Criadores, Aprenda, blog, links do footer, newsletter, login social, "Esqueceu a senha?", leitor de QR e lista de favoritos na barra mobile | Fora do escopo: exibem um aviso de "não disponível nesta demonstração", sem simular sucesso. Redes sociais e compartilhamento abrem os sites reais. |
+| Footer no mobile | Os frames mobile não têm footer (a barra inferior ocupa o rodapé), então ele só aparece a partir do tablet. |
+
 ## Decisões
 
 ### Bloco 1: contratos e MSW

@@ -1,28 +1,43 @@
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { api } from "@/api/client";
+import { createFileRoute, stripSearchParams, useNavigate } from "@tanstack/react-router";
+import { useCallback, useMemo } from "react";
+import { HomePage } from "@/features/catalog/home-page";
+import type { CatalogPatch } from "@/features/catalog/catalog-section";
+import {
+  CATALOG_DEFAULTS,
+  catalogSearchSchema,
+  toSearchInput,
+  type CatalogSearchInput,
+} from "@/features/catalog/search";
 
 export const Route = createFileRoute("/")({
-  component: HomePlaceholder,
+  // A URL guarda a forma serializada (listas "a,b"); valores inválidos caem no padrão.
+  validateSearch: (raw: Record<string, unknown>): CatalogSearchInput => toSearchInput(catalogSearchSchema.parse(raw)),
+  // Padrões não poluem a URL: "/" equivale a aba "all", ordenação "recent", página 1.
+  search: { middlewares: [stripSearchParams(CATALOG_DEFAULTS)] },
+  component: HomeRoute,
 });
 
-// Placeholder do Bloco 0: comprova Router + Query + Axios + MSW de ponta a ponta.
-// A tela real de Início é implementada no Bloco 2.
-function HomePlaceholder() {
-  const health = useQuery({
-    queryKey: ["health"],
-    queryFn: async () => (await api.get<{ status: string }>("/health")).data,
-  });
+function HomeRoute() {
+  const raw = Route.useSearch();
+  const search = useMemo(() => catalogSearchSchema.parse(raw), [raw]);
+  const navigate = useNavigate({ from: "/" });
 
-  return (
-    <main className="mx-auto flex min-h-dvh max-w-xl flex-col items-center justify-center gap-4 px-4 text-center">
-      <h1 className="text-32 font-bold">KURIO</h1>
-      <p className="text-14 text-text-secondary">Marketplace de NFTs em construção.</p>
-      <p role="status" aria-live="polite" className="text-14 text-text-accent">
-        {health.isPending && "Verificando API…"}
-        {health.isError && "API indisponível"}
-        {health.isSuccess && `API: ${health.data.status}`}
-      </p>
-    </main>
+  const onChange = useCallback(
+    (patch: CatalogPatch) => {
+      void navigate({
+        search: (prev) => {
+          const current = catalogSearchSchema.parse(prev);
+          // Qualquer filtro novo reinicia a paginação; só a própria paginação a preserva.
+          const next = { ...current, ...patch, page: patch.page ?? 1 };
+          return toSearchInput(next);
+        },
+        // Digitação na busca substitui a entrada do histórico; filtros e páginas criam novas.
+        replace: Object.keys(patch).length === 1 && "q" in patch,
+        resetScroll: false,
+      });
+    },
+    [navigate],
   );
+
+  return <HomePage search={search} onChange={onChange} />;
 }

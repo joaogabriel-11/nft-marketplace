@@ -11,8 +11,7 @@ export type RouteTag =
   | "cart.get" | "cart.add" | "cart.update" | "cart.remove" | "cart.coupon" | "cart.merge"
   | "checkout.quote" | "orders.create" | "orders.get" | "orders.list"
   | "profile.get" | "profile.update" | "profile.avatar" | "profile.password"
-  | "wallets.list" | "wallets.upsert" | "wallets.connect" | "wallets.disconnect"
-  | "health";
+  | "wallets.list" | "wallets.upsert" | "wallets.connect" | "wallets.disconnect";
 
 export type FailureKind = 500 | 503 | 401 | 403 | "network";
 

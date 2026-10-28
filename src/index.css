@@ -104,4 +104,57 @@
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;
   }
+
+  /* Âncoras (#catalogo) não ficam escondidas atrás do topo. */
+  html {
+    scroll-padding-top: 24px;
+  }
+}
+
+@layer components {
+  /* Skeleton com shimmer: gradiente que percorre o bloco. */
+  .skeleton {
+    background-color: var(--color-surface-raised);
+    background-image: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in srgb, var(--color-primary) 14%, transparent) 50%,
+      transparent 80%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  /* Ícones monocromáticos coloridos via máscara (mantém o SVG original do Figma). */
+  .icon-mask {
+    display: inline-block;
+    background-color: currentColor;
+    mask: var(--icon) center / contain no-repeat;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background-image: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
