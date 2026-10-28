@@ -104,15 +104,6 @@ Erros transversais simulados pelos cenários: 401, 403, 500 `internal_error`, 50
 - No login ou cadastro, o carrinho de visitante é mesclado (`/cart/merge`) e o cache de visitante é descartado. A troca de usuário sem logout também limpa o cache do anterior (`applySession`).
 - **Favoritos:** atualização otimista com snapshot e rollback em `onError`, e `setQueryData` com a resposta da API no sucesso.
 
-### Bloco 2: início, detalhe e login
-
-- **Login e cadastro como modal sobre o mercado no desktop**, como no Figma. Ao fundo fica o Início, inerte (`aria-hidden` e foco preso no dialog). No mobile são tela cheia. Fechar (X ou Esc) volta ao `redirect`.
-- **Detalhe com loader:** `ensureQueryData` no loader garante acesso direto e refresh. Um 404 da API vira `notFound()` com página própria, e outros erros mostram a página de erro com nova tentativa. O `pendingComponent` é o mesmo esqueleto da tela.
-- **Respostas fora de ordem:** cada combinação de parâmetros tem sua chave, a requisição anterior é abortada pelo `signal` e `placeholderData` mantém a página anterior visível (com `aria-busy`) até a nova chegar.
-- **Skeletons** com as mesmas dimensões dos cards (`aspect-ratio`), sem deslocamento de layout. Com `prefers-reduced-motion`, o shimmer para.
-- **Inputs de filtro e edição** são checkbox e radio nativos invisíveis cobrindo a linha ou pílula inteira: teclado, leitor de tela e clique funcionam sem ARIA extra, e o estado ativo tem marcador visual além da cor.
-- **Imagens:** as 4 artes do Figma, convertidas para WebP em 512 e 1024 px (`scripts/optimize-images.mjs`), com `srcset`, dimensões explícitas e `fetchpriority=high` só na primeira dobra.
-
 ## Carrinho e checkout
 
 - **Estado do carrinho:** fica no servidor simulado (de visitante ou do usuário) e o cache guarda a resposta inteira. Toda mutation (adicionar, quantidade, remover, cupom) responde com o carrinho recalculado e é gravada com `setQueryData`; não há totais calculados no cliente.
@@ -165,6 +156,37 @@ Envelope comum: `{ eventId, type, resourceId, version, occurredAt, payload }`, v
 - O "servidor" vive na aba: não há tempo real entre abas ou dispositivos. Duas abas abertas têm bancos simulados independentes, que só se cruzam pelo `localStorage` no próximo carregamento. Vale o mesmo para a demo publicada.
 - Uma queda simulada aceita o transporte e fecha logo em seguida. O Manager do `socket.io-client` só agenda nova tentativa para quedas depois do `open` do Engine.IO; recusar antes disso deixaria o cliente parado até o timeout de 20 s.
 
+## Estratégia de testes
+
+| Camada | Onde | O que garante |
+|---|---|---|
+| Contrato da API | `e2e/api` | Handlers MSW chamados por `fetch` de dentro da página (pelo service worker): validação, erros por código, isolamento por usuário, idempotência, revalidação, reset. |
+| Interface | `e2e/ui` | Fluxos completos pela UI, em desktop e mobile, observando a tela e o resultado das operações (estado da API). |
+| Tempo real | `e2e/ui/realtime.spec.ts` | Eventos gerados no servidor simulado e recebidos pelo `socket.io-client` real; sem refresh e sem polling nas queries envolvidas. |
+| Relógio | `e2e/ui/clock.spec.ts` | `page.clock` controla a app e a simulação (o MSW roda na página): expiração de cotação, TTL de sessão, liquidação. |
+| Teclado e foco | `e2e/ui/keyboard.spec.ts` | Skip link, filtros, ordenação, paginação e edições pelo teclado; foco preso e devolvido em dialogs e sheets; foco no primeiro campo inválido. |
+| Visual | `e2e/visual` | Screenshots de página inteira com dados estáveis; baselines por plataforma, fora do CI. |
+
+Isolamento: cada teste abre um contexto novo (storage e service worker limpos) com `?mock-reset&scenario=instant`. Os helpers ficam em `e2e/support`, e nenhum teste depende de outro.
+
+### Matriz requisito → teste
+
+| Requisito do desafio | Testes |
+|---|---|
+| Busca, filtros combinados, ordenação, paginação e histórico | `ui/catalog`: filtros combinados…, abas e busca…, busca com debounce… (mobile) |
+| Acesso direto ao detalhe e recurso inexistente | `ui/detail-auth`: acesso direto…, NFT inexistente… |
+| Cadastro, login, expiração, logout e troca de usuário | `ui/detail-auth`: login valida…, cadastro…, sessão expirada…, logout e troca…; `ui/clock`: sessão expira pelo tempo… |
+| Favoritos com falha e recuperação | `ui/detail-auth`: favorito com falha da API… |
+| Carrinho, quantidades, remoção, cupom, persistência após refresh e login | `ui/checkout`: quantidade, remoção, cupom…, do catálogo ao recibo (merge no login); `api/cart-orders` |
+| Compra completa até o recibo | `ui/checkout`: do catálogo ao recibo confirmado |
+| Pagamento recusado, clique repetido, timeout com o mesmo pedido | `ui/checkout`: pagamento recusado…, clique repetido…, timeout após criar o pedido… |
+| Perfil, avatar, senha e carteiras com validação | `api/catalog-auth` (perfil e senha), `api/cart-orders` (carteiras); `ui/checkout`: usuário sem carteira cadastra… — telas de perfil e carteiras no Bloco 6 |
+| Preço e disponibilidade via Socket.IO durante o checkout | `ui/realtime`: checkout: evento durante a revisão…, carrinho aberto… |
+| Eventos duplicados ou antigos, desconexão e pedido pendente | `ui/realtime`: eventos duplicados…, eventos perdidos…, queda com pedido pendente… |
+| Teclado, foco de dialogs e validação de formulários | `ui/keyboard` (todos); `ui/detail-auth`: dialog de login: Esc… |
+| Skeletons em carregamento lento, falha e nova tentativa | `ui/catalog`: skeletons…, falha do servidor…, falha transitória… |
+| Regressão visual de início, detalhe, carrinho e pagamento | `visual/screens` (desktop e mobile) |
+
 ## Desvios do Figma e ações fora do escopo
 
 | Item | Decisão |
@@ -184,6 +206,22 @@ Envelope comum: `{ eventId, type, resourceId, version, occurredAt, payload }`, v
 | Footer no mobile | Os frames mobile não têm footer (a barra inferior ocupa o rodapé), então ele só aparece a partir do tablet. |
 
 ## Decisões
+
+### Bloco 5: testes e documentação
+
+- **Regressão visual em projetos próprios** (`visual-desktop`, `visual-mobile`), fora do `test:e2e` e do CI. As baselines levam o sufixo de plataforma (`-win32`), porque Windows e Linux renderizam fontes de forma diferente. Os dados são estáveis (reset, `instant`, `page.clock.setFixedTime`), e a captura espera fontes, imagens visíveis carregadas e nenhum toast ou `aria-busy` na tela.
+- **Relógio controlado:** como o "servidor" MSW roda na página, `page.clock` controla a expiração de cotação e de sessão e a liquidação do pagamento na app e na simulação ao mesmo tempo. Um bug encontrado assim: a cotação nova devolvida no `409 quote_expired` não era gravada no mock, e confirmar com ela dava 404.
+- **CI no GitHub Actions** (Ubuntu): typecheck, lint, build e `test:e2e`, com 1 retry em CI. O relatório HTML é sempre publicado e os traces, quando há falha.
+- **Skip link:** chama `focus()` no `main`, porque a âncora sozinha só rola a página e não move o foco do teclado no Chrome.
+
+### Bloco 2: início, detalhe e login
+
+- **Login e cadastro como modal sobre o mercado no desktop**, como no Figma. Ao fundo fica o Início, inerte (`aria-hidden` e foco preso no dialog). No mobile são tela cheia. Fechar (X ou Esc) volta ao `redirect`.
+- **Detalhe com loader:** `ensureQueryData` no loader garante acesso direto e refresh. Um 404 da API vira `notFound()` com página própria, e outros erros mostram a página de erro com nova tentativa. O `pendingComponent` é o mesmo esqueleto da tela.
+- **Respostas fora de ordem:** cada combinação de parâmetros tem sua chave, a requisição anterior é abortada pelo `signal` e `placeholderData` mantém a página anterior visível (com `aria-busy`) até a nova chegar.
+- **Skeletons** com as mesmas dimensões dos cards (`aspect-ratio`), sem deslocamento de layout. Com `prefers-reduced-motion`, o shimmer para.
+- **Inputs de filtro e edição** são checkbox e radio nativos invisíveis cobrindo a linha ou pílula inteira: teclado, leitor de tela e clique funcionam sem ARIA extra, e o estado ativo tem marcador visual além da cor.
+- **Imagens:** as 4 artes do Figma, convertidas para WebP em 512 e 1024 px (`scripts/optimize-images.mjs`), com `srcset`, dimensões explícitas e `fetchpriority=high` só na primeira dobra.
 
 ### Bloco 1: contratos e MSW
 

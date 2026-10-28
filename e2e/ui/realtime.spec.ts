@@ -1,33 +1,13 @@
 import type { Page } from "@playwright/test";
-import { addToGuestCart, call, CREDENTIALS, expect, openApp, test } from "../support/api";
+import { addToGuestCart, call, expect, openApp, test } from "../support/api";
+import { EMERALD, editionPath as editionPathOf, loginUI, realtimeClients, waitRealtime as waitConnected } from "../support/app";
 
 /**
  * Tempo real: os eventos são gerados no servidor simulado (endpoints /__dev) e chegam à UI
  * pelo socket.io-client sobre o WebSocket interceptado pelo MSW. Nenhum teste recarrega a
  * página para ver a mudança: as queries envolvidas não têm polling.
  */
-const EMERALD = { nftId: "emerald-ape-042", editionId: "emerald-ape-042--1-50" };
-const editionPath = `/__dev/nfts/${EMERALD.nftId}/editions/${EMERALD.editionId}`;
-
-async function realtimeClients(page: Page): Promise<Array<{ userId: string | null }>> {
-  const { body } = await call(page, "GET", "/__dev/realtime");
-  return Array.isArray(body?.clients) ? body.clients : [];
-}
-
-/** Espera o socket desta página conectar (e o servidor registrar a conexão do usuário). */
-async function waitConnected(page: Page, userId: string | null = null) {
-  await expect(page.locator("html")).toHaveAttribute("data-realtime", "connected");
-  await expect.poll(async () => (await realtimeClients(page)).some((c) => c.userId === userId)).toBe(true);
-}
-
-async function loginUI(page: Page, who: keyof typeof CREDENTIALS, redirect: string) {
-  await page.goto(`/login?redirect=${encodeURIComponent(redirect)}`);
-  const dialog = page.getByRole("dialog");
-  await dialog.getByRole("textbox", { name: "E-mail" }).fill(CREDENTIALS[who].email);
-  await dialog.getByLabel("Senha", { exact: true }).fill(CREDENTIALS[who].password);
-  await dialog.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page).toHaveURL(redirect);
-}
+const editionPath = editionPathOf(EMERALD);
 
 /** Preço da edição no detalhe: abaixo do título (desktop) ou na barra de compra (mobile, "Total: X ETH"). */
 const detailPrice = (page: Page) =>

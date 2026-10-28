@@ -244,18 +244,21 @@ export const orderHandlers = [
     // 3. Revalidação: a cotação aceita precisa bater com preços, estoque, cupom e taxas atuais.
     const accepted = db.state.quotes.find((q) => q.id === input.quoteId && q.userId === user.id) ?? notFound("Cotação");
     const { quote: fresh, blocking } = buildQuote(user);
+    // A cotação nova devolvida no 409 precisa existir para o usuário confirmar com ela.
+    const storeFresh = () =>
+      fresh &&
+      db.write((draft) => {
+        draft.quotes = draft.quotes.filter((q) => q.userId !== user.id).concat(fresh);
+      });
     if (Date.parse(accepted.expiresAt) <= Date.now()) {
+      storeFresh();
       fail(409, "quote_expired", "A cotação expirou. Revise os valores atualizados.", {
         details: { quote: fresh ? toQuote(fresh) : null, changes: blocking } satisfies QuoteOutdatedDetails,
       });
     }
     const changes = fresh ? diffQuote(accepted, fresh) : blocking;
     if (!fresh || changes.length) {
-      if (fresh) {
-        db.write((draft) => {
-          draft.quotes = draft.quotes.filter((q) => q.userId !== user.id).concat(fresh);
-        });
-      }
+      storeFresh();
       fail(409, "quote_outdated", "Os valores mudaram desde a revisão. Confirme novamente.", {
         details: { quote: fresh ? toQuote(fresh) : null, changes } satisfies QuoteOutdatedDetails,
       });

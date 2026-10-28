@@ -1,8 +1,6 @@
 import type { Page } from "@playwright/test";
-import { call, CREDENTIALS, expect, openApp, setScenario, test } from "../support/api";
-
-/** Elementos do layout ativo (desktop e mobile coexistem no DOM, um deles com display:none). */
-const visible = (page: Page) => page.locator("main");
+import { call, expect, openApp, setScenario, test } from "../support/api";
+import { loginThroughForm, main as visible } from "../support/app";
 
 /** Botão de favorito do NFT da página (mesmo nome acessível no desktop e no mobile). */
 const favoriteButton = (page: Page, name: string) =>
@@ -10,14 +8,6 @@ const favoriteButton = (page: Page, name: string) =>
     .getByRole("button", { name: new RegExp(`^(Favoritar ${name}|Remover ${name} dos favoritos)$`) })
     .filter({ visible: true })
     .first();
-
-async function loginThroughForm(page: Page, who: keyof typeof CREDENTIALS) {
-  const dialog = page.getByRole("dialog");
-  await dialog.getByRole("textbox", { name: "E-mail" }).fill(CREDENTIALS[who].email);
-  await dialog.getByLabel("Senha", { exact: true }).fill(CREDENTIALS[who].password);
-  await dialog.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(dialog).toBeHidden();
-}
 
 test.describe("detalhe do NFT", () => {
   test("acesso direto, edição esgotada e limite de quantidade", async ({ page }) => {

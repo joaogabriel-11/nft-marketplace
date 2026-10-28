@@ -1,30 +1,6 @@
 import type { Page } from "@playwright/test";
 import { addToGuestCart, call, CREDENTIALS, expect, openApp, setScenario, test } from "../support/api";
-
-const EMERALD = { nftId: "emerald-ape-042", editionId: "emerald-ape-042--1-50" };
-const GOLDEN = { nftId: "golden-beat-207", editionId: "golden-beat-207--aberta" };
-
-async function loginUI(page: Page, who: keyof typeof CREDENTIALS, redirect: string) {
-  await page.goto(`/login?redirect=${encodeURIComponent(redirect)}`);
-  const dialog = page.getByRole("dialog");
-  await dialog.getByRole("textbox", { name: "E-mail" }).fill(CREDENTIALS[who].email);
-  await dialog.getByLabel("Senha", { exact: true }).fill(CREDENTIALS[who].password);
-  await dialog.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page).toHaveURL(redirect);
-}
-
-const token = (page: Page) => page.evaluate(() => localStorage.getItem("kurio:token")!);
-
-/** Usuário logado com itens no carrinho (via API, pelo service worker) e já na tela de pagamento. */
-async function readyForCheckout(page: Page, who: keyof typeof CREDENTIALS = "ana", scenario = "instant") {
-  await openApp(page, "/", scenario);
-  await loginUI(page, who, "/carrinho");
-  const auth = await token(page);
-  await call(page, "POST", "/cart/items", { token: auth, body: { ...EMERALD, quantity: 2 } });
-  await page.goto("/pagamento");
-  await expect(page.getByRole("button", { name: "Confirmar compra" })).toBeEnabled();
-  return auth;
-}
+import { EMERALD, GOLDEN, loginUI, readyForCheckout } from "../support/app";
 
 const review = (page: Page) => page.getByRole("dialog");
 
@@ -111,7 +87,7 @@ test.describe("carrinho", () => {
 
 test.describe("pagamento", () => {
   test("preço alterado depois da cotação exige nova confirmação", async ({ page }) => {
-    await readyForCheckout(page, "ana", "price-change");
+    await readyForCheckout(page, { who: "ana", scenario: "price-change" });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
     await review(page).getByRole("button", { name: "Confirmar pagamento" }).click();
     await expect(review(page).getByRole("heading", { name: "Os valores mudaram" })).toBeVisible();
@@ -121,7 +97,7 @@ test.describe("pagamento", () => {
   });
 
   test("edição esgotada depois da cotação bloqueia a compra", async ({ page }) => {
-    await readyForCheckout(page, "ana", "sold-out");
+    await readyForCheckout(page, { who: "ana", scenario: "sold-out" });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
     await review(page).getByRole("button", { name: "Confirmar pagamento" }).click();
     await expect(review(page).getByRole("alert")).toContainText("esgotou");
@@ -130,7 +106,7 @@ test.describe("pagamento", () => {
   });
 
   test("pagamento recusado mostra o motivo e preserva o carrinho", async ({ page }) => {
-    await readyForCheckout(page, "ana", "payment-rejected");
+    await readyForCheckout(page, { who: "ana", scenario: "payment-rejected" });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
     await review(page).getByRole("button", { name: "Confirmar pagamento" }).click();
     await expect(page.getByRole("heading", { name: "Pagamento recusado" })).toBeVisible({ timeout: 10_000 });
@@ -151,7 +127,7 @@ test.describe("pagamento", () => {
 
   test("timeout após criar o pedido recupera o mesmo pedido pela chave de idempotência", async ({ page }) => {
     test.setTimeout(60_000);
-    const auth = await readyForCheckout(page, "ana", "order-timeout");
+    const auth = await readyForCheckout(page, { who: "ana", scenario: "order-timeout" });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
     await review(page).getByRole("button", { name: "Confirmar pagamento" }).click();
     await expect(review(page).getByRole("button", { name: "Processando pagamento…" })).toBeVisible();
@@ -162,7 +138,7 @@ test.describe("pagamento", () => {
   });
 
   test("conexão recusada na carteira e nova tentativa", async ({ page }) => {
-    await readyForCheckout(page, "ana", "wallet-rejected");
+    await readyForCheckout(page, { who: "ana", scenario: "wallet-rejected" });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "A conexão foi recusada na carteira" })).toBeVisible();
     await page.getByRole("button", { name: "Confirmar compra" }).click();
@@ -189,7 +165,7 @@ test.describe("pagamento (desktop)", () => {
   test.skip(({ isMobile }) => isMobile, "Formulário completo visível por padrão só no desktop");
 
   test("usuário sem carteira cadastra no pagamento, com validação por campo", async ({ page }) => {
-    await readyForCheckout(page, "bruno");
+    await readyForCheckout(page, { who: "bruno" });
     await page.getByRole("button", { name: "Confirmar compra" }).click();
     await expect(page.getByLabel("Endereço da carteira")).toHaveAccessibleDescription("Digite o endereço da carteira");
     await expect(page.getByLabel("Rede")).toHaveAccessibleDescription("Selecione uma rede");

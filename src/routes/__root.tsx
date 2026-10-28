@@ -32,6 +32,11 @@ function RootLayout() {
     <>
       <a
         href="#conteudo"
+        // A âncora sozinha rola, mas não move o foco do teclado no Chrome: o main recebe o foco.
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("conteudo")?.focus();
+        }}
         className="fixed top-2 left-2 z-[60] -translate-y-20 rounded-[6px] bg-primary px-4 py-2 text-14 font-bold text-ink focus:translate-y-0"
       >
         Pular para o conteúdo
