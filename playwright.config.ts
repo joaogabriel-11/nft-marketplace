@@ -1,7 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 4173;
-const baseURL = `http://localhost:${PORT}`;
+// E2E_BASE_URL permite rodar a suíte contra o deploy publicado, sem subir servidor local.
+const externalURL = process.env.E2E_BASE_URL;
+const baseURL = externalURL ?? `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -27,10 +29,12 @@ export default defineConfig({
     },
   ],
   // Roda contra o build de produção com mocks, o mesmo artefato do deploy.
-  webServer: {
-    command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-  },
+  webServer: externalURL
+    ? undefined
+    : {
+        command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 180_000,
+      },
 });
