@@ -1,0 +1,107 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Só o subset latino (cobre acentos do pt-BR); evita baixar cirílico/grego. */
+@import "@fontsource/roboto-mono/latin-400.css";
+@import "@fontsource/roboto-mono/latin-500.css";
+@import "@fontsource/roboto-mono/latin-700.css";
+
+/*
+ * Tokens extraídos das variáveis locais do Figma (coleção única, modo único).
+ * Os nomes seguem as variáveis do arquivo: color/primary -> --color-primary etc.
+ * O design é escuro por padrão; não há variante clara no Figma.
+ */
+@theme {
+  --font-sans: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Marca */
+  --color-primary: #d28a4c;
+  --color-primary-light: #dd9a5f;
+  --color-primary-dark: #c47b3e;
+  --color-amber: #e3a44e;
+  --color-coral: #f0805f;
+
+  /* Superfícies */
+  --color-ink: #140d0a;
+  --color-ink-deep: #0e0907;
+  --color-ink-soft: #1c110c;
+  --color-surface-card: #241612;
+  --color-surface-raised: #2f1d15;
+  --color-surface-dark: #38220f;
+
+  /* Texto */
+  --color-foreground: #f5f1eb;
+  --color-text-primary: #f7f3ec;
+  --color-text-secondary: #cfb28c;
+  --color-text-accent: #e89b55;
+  --color-text-muted: #b0916a;
+  --color-secondary: #b39463;
+
+  /* Bordas */
+  --color-border: #3f2319;
+  --color-border-soft: #55321f;
+
+  /* Status */
+  --color-success: #00a66c;
+  --color-error: #ed1b2e;
+  --color-gray-light: #ededed;
+  --color-background-elevated: #fbfbfb;
+
+  /* Escala tipográfica usada nos frames (px). */
+  --text-9: 0.5625rem;
+  --text-10: 0.625rem;
+  --text-12: 0.75rem;
+  --text-13: 0.8125rem;
+  --text-14: 0.875rem;
+  --text-15: 0.9375rem;
+  --text-16: 1rem;
+  --text-17: 1.0625rem;
+  --text-18: 1.125rem;
+  --text-20: 1.25rem;
+  --text-21: 1.3125rem;
+  --text-22: 1.375rem;
+  --text-24: 1.5rem;
+  --text-28: 1.75rem;
+  --text-32: 2rem;
+  --text-43: 2.6875rem;
+}
+
+/*
+ * Aliases semânticos esperados pelos componentes shadcn/ui, apontando para os
+ * tokens do Figma. Componentes do shadcn usam bg-background, text-muted-foreground etc.
+ */
+@theme inline {
+  --color-background: var(--color-ink);
+  --color-card: var(--color-surface-card);
+  --color-card-foreground: var(--color-foreground);
+  --color-popover: var(--color-surface-raised);
+  --color-popover-foreground: var(--color-foreground);
+  --color-primary-foreground: var(--color-ink);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-surface-raised);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-accent: var(--color-surface-raised);
+  --color-accent-foreground: var(--color-text-accent);
+  --color-destructive: var(--color-error);
+  --color-input: var(--color-border-soft);
+  --color-ring: var(--color-primary);
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+}
