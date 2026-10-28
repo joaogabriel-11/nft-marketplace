@@ -5,7 +5,54 @@ Todas as APIs são simuladas com MSW na camada de rede.
 
 **Demo:** https://nft-marketplace-one-fawn.vercel.app · **Repositório:** https://github.com/joaogabriel-11/nft-marketplace
 
-> Em construção. Credenciais fictícias, cenários, reset e fluxos de falha serão documentados nos próximos blocos.
+> Em construção: a API simulada está completa e as telas entram nos próximos blocos.
+
+## Credenciais fictícias
+
+| Usuário | E-mail | Senha | Estado inicial |
+|---|---|---|---|
+| Ana Ribeiro | `ana@kurio.dev` | `ana12345` | Carteira principal MetaMask (Ethereum) e 2 favoritos |
+| Bruno Costa | `bruno@kurio.dev` | `bruno12345` | Sem carteiras nem favoritos |
+
+Cupons: `KURIO10` (10%), `GENESIS25` (25%) e `EXPIRADO` (expirado). Qualquer outro código é inválido.
+
+## Cenários e reset
+
+O cenário ativo fica salvo no navegador. Para escolher um, use uma das opções:
+
+- abra a app com `?scenario=<nome>`, por exemplo `/?scenario=slow`;
+- ou chame `PUT /api/__dev/scenario` com `{ "name": "<nome>" }`.
+
+| Cenário | Efeito |
+|---|---|
+| `default` | Sucesso com latência entre 80 e 220 ms |
+| `instant` | Sem latência (usado nos testes) |
+| `slow` | 2,5 s por resposta (para ver skeletons) |
+| `variable-latency` | Entre 0,1 e 2 s (reproduzível) |
+| `out-of-order` | Listagens alternam 1,5 s e 0,15 s, e as respostas chegam fora de ordem |
+| `empty-catalog` | Catálogo vazio |
+| `offline` | Falha de rede em toda a API |
+| `server-error` | Catálogo, detalhe e carrinho respondem 500 |
+| `flaky` | A primeira chamada de catálogo, detalhe e carrinho responde 503 e a seguinte funciona |
+| `session-expired` | A sessão expira 15 s depois do login |
+| `forbidden` | Perfil e carteiras respondem 403 |
+| `favorites-fail` | Incluir ou remover favorito falha (rollback otimista) |
+| `price-change` | O preço do primeiro item sobe 10% depois da primeira cotação |
+| `sold-out` | A edição do primeiro item esgota depois da primeira cotação |
+| `order-timeout` | O pedido é criado, mas a resposta chega depois do timeout do cliente (10 s) |
+| `payment-rejected` | Pagamento recusado |
+| `wallet-rejected` | A primeira conexão de carteira é recusada |
+
+Controles da simulação. Eles também funcionam na demo, sem latência nem falhas:
+
+| Ação | Como |
+|---|---|
+| Restaurar os dados iniciais | `?mock-reset` na URL, ou `POST /api/__dev/reset` com `{ "scenario": "<nome>" }` opcional |
+| Ver o cenário ativo e a lista | `GET /api/__dev/scenario` |
+| Expirar a sessão do token enviado | `POST /api/__dev/sessions/expire` |
+| Alterar preço ou estoque de uma edição | `PATCH /api/__dev/nfts/:nftId/editions/:editionId` com `{ "priceEth": "1.5", "available": 0 }` |
+
+Contratos completos em [ARCHITECTURE.md](./ARCHITECTURE.md#contratos-rest).
 
 ## Requisitos
 

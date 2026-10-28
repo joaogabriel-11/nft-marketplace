@@ -25,6 +25,23 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Permite omitir campos com rest destructuring ({ userId: _u, ...publico }).
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { ignoreRestSiblings: true, argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
+  },
+  {
+    // Testes Playwright: `use` é o fixture do Playwright (não um hook React) e as respostas
+    // de API são inspecionadas de forma dinâmica.
+    files: ['e2e/**/*.ts'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
   },
   {
     // Arquivos de rota exportam `Route`; o plugin do TanStack Router cuida do HMR deles.

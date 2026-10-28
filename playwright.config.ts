@@ -26,6 +26,8 @@ export default defineConfig({
     {
       name: "mobile",
       use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } },
+      // Testes de contrato da API não dependem de viewport: rodam só no projeto desktop.
+      testIgnore: "api/**",
     },
   ],
   // Roda contra o build de produção com mocks, o mesmo artefato do deploy.

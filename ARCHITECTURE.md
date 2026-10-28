@@ -15,7 +15,90 @@ Documento vivo, atualizado a cada bloco de trabalho.
 
 Domínios ficam em `src/features/{catalog,nft,cart,checkout,auth,profile,wallets}`.
 
+## Camadas de dados
+
+```
+UI / hooks (features)  →  TanStack Query (cache por chave)  →  src/api/endpoints.ts  →  Axios (src/api/client.ts)
+                                                                     │ valida com zod                 │ Bearer, X-Guest-Cart-Id, Idempotency-Key
+                                                                     ▼                                ▼
+                                                        src/api/contracts (fonte única)     rede (service worker do MSW)
+                                                                     ▲                                ▼
+                                                                     └──────────────  src/mocks (handlers, db, cenários)
+```
+
+- **Contratos** (`src/api/contracts`) são schemas zod. Os tipos TypeScript saem deles, o cliente valida toda resposta 2xx e os handlers MSW validam todo corpo recebido. Uma divergência vira `ApiError { kind: "invalid_response" }` em vez de dado corrompido na UI.
+- **Erros** chegam à UI sempre como `ApiError`, com `kind` (`http`, `network`, `timeout`, `canceled`, `invalid_response`), `status`, `code` estável e `fieldErrors` por campo. A UI decide pelo `code`, não pelo texto.
+- **ETH** trafega como string decimal (`"2.158"`) e é calculado com decimal.js no servidor simulado (6 casas no resultado). Quantidades são inteiras.
+- **Mocks** ficam só em `src/mocks`. Componentes, hooks e Axios não sabem que existe simulação: a única ligação é o `VITE_ENABLE_MOCKS` no `main.tsx`.
+
+## Contratos REST
+
+Base `/api`. Rotas marcadas com 🔒 exigem `Authorization: Bearer <token>`. Corpo de erro: `{ error: { code, message, fieldErrors?, details? } }`.
+
+| Método e rota | Descrição | Erros relevantes |
+|---|---|---|
+| `POST /auth/register` | Cria conta e já devolve `Session` | 422 `validation_error`, 409 `email_taken` / `username_taken` (com `fieldErrors`) |
+| `POST /auth/login` | Devolve `Session { token, expiresAt, user }` | 401 `invalid_credentials` (mesma resposta para e-mail inexistente e senha errada) |
+| 🔒 `GET /auth/session` | Recupera a sessão após refresh | 401 `unauthorized` / `session_expired` |
+| 🔒 `POST /auth/logout` | Encerra o token e as conexões de carteira da sessão | |
+| `GET /nfts` | `q`, `categories=a,b`, `networks=a,b`, `minPrice`, `maxPrice`, `tab=all\|new\|trending`, `sort=recent\|price-asc\|price-desc\|name`, `page`, `pageSize`. Devolve itens, paginação e `facets` (contagens sobre busca e aba, faixa de preço do catálogo) | 422 para parâmetros inválidos |
+| `GET /nfts/:id` | Detalhe com edições (`available`, `maxPerOrder`, `priceEth`) | 404 |
+| `GET /nfts/:id/related` | "Mais desta coleção" | 404 |
+| 🔒 `GET/PUT/DELETE /favorites[/:nftId]` | Lista, inclui e remove favoritos; devolve `{ nftIds }` | 404 |
+| `GET /cart` | Carrinho do usuário (Bearer) ou do visitante (`X-Guest-Cart-Id`), com preço e disponibilidade atuais, `status` por item e totais | |
+| `POST /cart/items` · `PATCH/DELETE /cart/items/:editionId` | Inclui (soma), altera ou remove item | 409 `insufficient_availability` (`details.maxPerOrder`), 409 `edition_unavailable` |
+| `PUT/DELETE /cart/coupon` | Aplica ou remove cupom | 422 `coupon_invalid` / `coupon_expired` |
+| 🔒 `POST /cart/merge` | Soma o carrinho do visitante ao do usuário (respeitando limites) e apaga o de visitante | |
+| 🔒 `POST /checkout/quote` | Cotação com validade de 5 min: snapshot de itens, cupom e totais | 422 `cart_empty`, 409 `insufficient_availability` |
+| 🔒 `POST /orders` + `Idempotency-Key` | Cria pedido `pending` a partir da cotação | 409 `idempotency_conflict`, `quote_outdated` / `quote_expired` (`details: { quote, changes }`), `wallet_not_connected`, 422 rede incompatível |
+| 🔒 `GET /orders/:id` · `GET /orders?status=` | Estado e recibo; pedido de outra conta responde 403 | 403, 404 |
+| 🔒 `GET/PATCH /profile` · `PUT/DELETE /profile/avatar` · `POST /profile/password` | Perfil, avatar (data URL até 512 KB) e senha | 409 conflitos, 422 `invalid_password` |
+| 🔒 `GET /wallets` · `PUT /wallets/:slot` | Carteiras `primary` e `secondary`; endereço validado por rede | 422, 409 endereço duplicado |
+| 🔒 `POST/DELETE /wallets/:id/connect` | Simula conectar e desconectar a extensão | 409 `wallet_rejected` |
+
+Erros transversais simulados pelos cenários: 401, 403, 500 `internal_error`, 503 `service_unavailable` e falha de rede.
+
+### Regras de compra
+
+1. **Cotação:** é criada a partir do carrinho e falha se algum item estiver esgotado ou acima do limite.
+2. **Pedido:** a criação revalida tudo contra o estado atual: preço, quantidade, disponibilidade, cupom e total. Qualquer diferença responde `409 quote_outdated` com a cotação nova e a lista de mudanças. A UI precisa mostrar as mudanças e pedir uma nova confirmação.
+3. **Idempotência:** a chave é por usuário. Mesma chave com o mesmo corpo (comparado por hash estável) devolve o mesmo pedido. Mesma chave com outro corpo responde `409 idempotency_conflict`. Uma chave nova representa uma nova intenção de compra.
+4. **Reserva de estoque:** ao criar o pedido, o estoque é reservado. Se o pagamento for recusado, a reserva é devolvida. Se for confirmado, o carrinho perde só as quantidades compradas.
+5. **Liquidação:** o pedido guarda `settlesAt` e o desfecho definido pelo cenário. A conclusão é preguiçosa: acontece na próxima requisição ou no intervalo de 1 s do worker. Por isso sobrevive a refresh e funciona com o relógio controlado do Playwright. Pedidos `confirmed` e `rejected` são terminais.
+6. **Recibo:** é o snapshot da cotação. Mudanças posteriores no catálogo não o alteram.
+
+## Mocks (MSW)
+
+- **Banco** (`src/mocks/db/store.ts`): estado único em memória, persistido no localStorage (`kurio:mock-db`). Toda escrita passa por `db.write`, que é transacional: roda sobre uma cópia e só troca o estado se não houver erro. Depois persiste e notifica as mudanças (`{ type: "nft" | "order", id, version }`). É esse canal que o Socket.IO vai transmitir no Bloco 4, para REST e eventos nunca divergirem.
+- **Versões:** cada NFT e cada pedido têm `version` monotônica, base para descartar eventos antigos ou duplicados.
+- **Fixtures determinísticas:** 45 NFTs gerados com PRNG de semente fixa (os 9 primeiros com os nomes e preços do Figma), 2 usuários com senha em PBKDF2, cupons válido e expirado. As fixtures não dependem do relógio real.
+- **Isolamento:** todo handler privado resolve o usuário pelo token e filtra pelo `userId`. Carrinho de visitante e carrinho de usuário nunca são acessíveis pela credencial do outro.
+- **Cenários** (`src/mocks/scenarios.ts`): configuram latência, falhas por rota (com "só as N primeiras") e efeitos de negócio. A latência variável usa PRNG reiniciado a cada troca de cenário, então é reproduzível.
+
+## Política de cache (TanStack Query)
+
+- **Chaves:** dados públicos sob `["public", ...]`. Dados privados sob `["user", userId, ...]`, com o carrinho de visitante em `["user", "guest", "cart"]`. Trocar de usuário nunca reaproveita cache, e o logout remove `["user"]` inteiro com um único `removeQueries`.
+- **Parâmetros na chave:** a lista do catálogo usa os parâmetros validados como chave. Cada combinação tem seu cache, e respostas de parâmetros antigos não sobrescrevem a atual.
+- **Cancelamento:** todo endpoint aceita o `signal` do Query, que aborta a requisição obsoleta quando a chave muda.
+- **Retry:** queries repetem até 2 vezes, com backoff (500 ms, 1 s, 2 s, no máximo 4 s), só para falhas transitórias (rede, timeout, 502, 503, 504). Erros 4xx e de contrato não são repetidos. Mutations não repetem sozinhas; o pedido é reenviado de forma explícita com a mesma chave de idempotência.
+- **`staleTime`** de 30 s e `gcTime` de 5 min. Sem refetch ao focar a janela; o tempo real chega por Socket.IO.
+
+## Sessão
+
+- O token fica no localStorage (`kurio:token`) para a sessão sobreviver a refresh, conforme o requisito. É opaco, expira no servidor (2 h, ou 15 s no cenário `session-expired`) e não carrega dados.
+- O interceptor do Axios envia o Bearer quando há token, e o `X-Guest-Cart-Id` quando não há. Um 401 numa requisição que levou token notifica os assinantes de `onUnauthorized`. A camada de auth (Bloco 2) usa isso para limpar o cache e redirecionar ao login com o destino preservado.
+- Trocar a senha encerra as outras sessões do usuário; a atual continua válida.
+
 ## Decisões
+
+### Bloco 1: contratos e MSW
+
+- **Carrinho de visitante no servidor simulado**, identificado por id, em vez de só no localStorage. Assim os totais e a disponibilidade vêm sempre da API, e a mesclagem no login é uma operação do servidor (`/cart/merge`), não uma lógica de cliente.
+- **Cupom gravado no carrinho:** o resumo exibido é sempre o calculado pela API. Um cupom que expira depois de aplicado deixa de valer no cálculo.
+- **Taxa de rede fixa de 0,016 ETH por pedido**, o valor do Figma.
+- **Limite por pedido:** o menor entre o disponível e 10 (edições limitadas) ou 20 (edição aberta).
+- **Conexão de carteira presa à sessão:** o pedido exige uma `connectionId` ativa da mesma sessão e uma rede igual à da carteira.
+- **Endpoints `/api/__dev/*`:** controlam a simulação (reset, cenário, expirar sessão, alterar uma edição). Não sofrem latência nem falhas e ficam disponíveis na demo para reproduzir os fluxos.
 
 ### Bloco 0: setup
 
