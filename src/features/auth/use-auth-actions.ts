@@ -15,7 +15,12 @@ function useOnAuthenticated(redirectTo: string | undefined) {
     try {
       // Itens adicionados como visitante passam para a conta.
       const cart = await cartApi.mergeGuest();
-      if (cart) queryClient.setQueryData(queryKeys.cart(session.user.id), cart);
+      if (cart) {
+        // A troca de sessão já disparou um GET /cart do usuário, que pode ter lido o carrinho antes
+        // da mesclagem. Cancelado aqui, a resposta antiga não sobrescreve o resultado do merge.
+        await queryClient.cancelQueries({ queryKey: queryKeys.cart(session.user.id) });
+        queryClient.setQueryData(queryKeys.cart(session.user.id), cart);
+      }
     } catch {
       toast.error("Não foi possível trazer os itens do carrinho de visitante.");
     }

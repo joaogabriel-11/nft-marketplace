@@ -239,6 +239,7 @@ Metas: Performance ≥ 90, Acessibilidade ≥ 95, Boas práticas ≥ 95, SEO ≥
 - **Perfil atualiza a sessão:** salvar o perfil ou o avatar grava a resposta no cache do perfil e no `session.user`, e o header muda sem nova busca. Trocar a senha encerra as outras sessões no servidor simulado; a atual continua.
 - **Rótulos com altura fixa** no `FieldShell` (a do asterisco no Figma), para campos com e sem asterisco alinharem na mesma linha do grid.
 - **Correções do axe:** o grupo "Taxa de rede" do resumo tinha `dt` e `dd` dentro de um `div` aninhado, com a nota "Taxa estimada" solta no `dl` (agora a nota fica dentro do `dd`). O botão da conta tinha a inicial do avatar como texto visível fora do nome acessível (WCAG 2.5.3); a inicial agora vem de CSS. Os subtítulos da aba de detalhes eram `h3` logo depois do `h1` no mobile e viraram `h2`.
+- **Corrida na mesclagem do carrinho (bug encontrado na verificação com checkout limpo):** o login troca a sessão e já dispara o `GET /cart` do usuário, em paralelo ao `POST /cart/merge`. Se o mock respondesse a leitura antes da mesclagem e ela chegasse por último, o cache ficava com o carrinho vazio, e o pagamento mostrava "Seu carrinho está vazio" (cerca de 3 em 20 execuções do teste de compra sob carga). Agora a leitura em andamento é cancelada antes de gravar o resultado da mesclagem: 0 falhas em 50 execuções.
 - **Reflow:** testado em 320 px de largura, o equivalente a 1280 px com zoom de 400%. Cobre também o zoom de 200% pedido pela WCAG 1.4.4.
 
 
