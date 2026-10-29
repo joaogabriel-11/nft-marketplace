@@ -1,6 +1,6 @@
 # Arquitetura
 
-Documento vivo, atualizado a cada bloco de trabalho.
+Decisões técnicas do projeto, registradas bloco a bloco durante o desenvolvimento.
 
 ## Stack e organização
 
@@ -13,7 +13,7 @@ Documento vivo, atualizado a cada bloco de trabalho.
 | Mocks | MSW 2 (REST e Socket.IO via `@mswjs/socket.io-binding`) | `src/mocks` |
 | Estilo | Tailwind 4 com tokens do Figma em `@theme`, mais shadcn/ui | `src/index.css`, `src/components/ui` |
 
-Domínios ficam em `src/features/{catalog,nft,cart,checkout,auth,profile,wallets}`.
+Domínios ficam em `src/features/{catalog,nft,cart,checkout,auth,account,wallets}` (`account` reúne o layout da área da conta e o perfil).
 
 ## Camadas de dados
 
@@ -164,6 +164,7 @@ Envelope comum: `{ eventId, type, resourceId, version, occurredAt, payload }`, v
 | Interface | `e2e/ui` | Fluxos completos pela UI, em desktop e mobile, observando a tela e o resultado das operações (estado da API). |
 | Tempo real | `e2e/ui/realtime.spec.ts` | Eventos gerados no servidor simulado e recebidos pelo `socket.io-client` real; sem refresh e sem polling nas queries envolvidas. |
 | Relógio | `e2e/ui/clock.spec.ts` | `page.clock` controla a app e a simulação (o MSW roda na página): expiração de cotação, TTL de sessão, liquidação. |
+| Acessibilidade | `e2e/ui/a11y.spec.ts` | axe-core (WCAG 2.1 A e AA) em todas as telas e estados finais (revisão e recibo), em desktop e mobile: violação séria ou crítica falha. Sem rolagem horizontal em 320 px. Shimmer ligado normalmente e parado com `prefers-reduced-motion`. |
 | Teclado e foco | `e2e/ui/keyboard.spec.ts` | Skip link, filtros, ordenação, paginação e edições pelo teclado; foco preso e devolvido em dialogs e sheets; foco no primeiro campo inválido. |
 | Visual | `e2e/visual` | Screenshots de página inteira com dados estáveis; baselines por plataforma, fora do CI. |
 
@@ -180,12 +181,14 @@ Isolamento: cada teste abre um contexto novo (storage e service worker limpos) c
 | Carrinho, quantidades, remoção, cupom, persistência após refresh e login | `ui/checkout`: quantidade, remoção, cupom…, do catálogo ao recibo (merge no login); `api/cart-orders` |
 | Compra completa até o recibo | `ui/checkout`: do catálogo ao recibo confirmado |
 | Pagamento recusado, clique repetido, timeout com o mesmo pedido | `ui/checkout`: pagamento recusado…, clique repetido…, timeout após criar o pedido… |
-| Perfil, avatar, senha e carteiras com validação | `api/catalog-auth` (perfil e senha), `api/cart-orders` (carteiras); `ui/checkout`: usuário sem carteira cadastra… — telas de perfil e carteiras no Bloco 6 |
+| Perfil, avatar, senha e carteiras com validação | `ui/account`: edição com conflito…, avatar: envio, persistência, remoção e arquivos recusados, troca de senha…, cadastro de principal e secundária…, acesso sem login e falha 403…, menu da conta…; `api/catalog-auth` (perfil e senha), `api/cart-orders` (carteiras); `ui/checkout`: usuário sem carteira cadastra… |
 | Preço e disponibilidade via Socket.IO durante o checkout | `ui/realtime`: checkout: evento durante a revisão…, carrinho aberto… |
 | Eventos duplicados ou antigos, desconexão e pedido pendente | `ui/realtime`: eventos duplicados…, eventos perdidos…, queda com pedido pendente… |
 | Teclado, foco de dialogs e validação de formulários | `ui/keyboard` (todos); `ui/detail-auth`: dialog de login: Esc… |
 | Skeletons em carregamento lento, falha e nova tentativa | `ui/catalog`: skeletons…, falha do servidor…, falha transitória… |
 | Regressão visual de início, detalhe, carrinho e pagamento | `visual/screens` (desktop e mobile) |
+| Acessibilidade automatizada, reflow e movimento reduzido | `ui/a11y` (todos) |
+| Performance (Lighthouse) | `npm run lighthouse`, resultados em `lighthouse/reports/summary.md` (fora do Playwright) |
 
 ## Desvios do Figma e ações fora do escopo
 
@@ -203,9 +206,41 @@ Isolamento: cada teste abre um contexto novo (storage e service worker limpos) c
 | Pagamento: quantos passos | O Figma tem um único "Confirmar compra". A implementação acrescenta um dialog de revisão com a cotação, exigido pelo desafio ("permitir revisão antes do envio"). |
 | Confirmação | No Figma é um modal sobre o pagamento. A implementação é uma página própria (`/pedidos/$id`), com o mesmo cartão, porque precisa abrir por link direto e sobreviver a refresh. O ícone "thank-you" foi substituído pelo `CheckCircle2` do lucide: o limite de chamadas do MCP do Figma (plano Starter) acabou antes da exportação. Pendente e recusado não estão desenhados e seguem o mesmo cartão. |
 | Mobile do carrinho e do pagamento | Implementados a partir da estrutura salva no cache de metadados do Figma (nomes, textos e medidas), sem o código gerado, pelo mesmo limite. A marca da Coinbase usa a letra "C", como WalletConnect e MetaMask. |
+| Área da conta: barra lateral | Os ícones dos itens são do lucide (mesmo traço e tamanho), porque os SVGs do Figma não foram exportados antes do fim da cota do MCP. Atividade, Lista de interesse, Ofertas, Downloads e Suporte não têm tela e mostram o aviso de fora do escopo. No mobile e no tablet, a barra vira abas em pílula acima do conteúdo (não há frame mobile dessas telas). |
+| Perfil: campos obrigatórios | O Figma põe asterisco em todos os campos. Nome ENS e Apelido da carteira ficaram opcionais, porque a API aceita perfil sem eles. O sufixo `.eth` aparece fixo ao lado do campo, e o usuário digita só o nome. |
+| Avatar | O arquivo é recortado ao centro e reduzido para 256×256 em WebP no navegador (canvas) antes do envio: a API aceita até 512 KB, e uma foto de celular passaria disso. A origem aceita PNG, JPG ou WEBP de até 5 MB. |
+| Carteiras: "Nome do perfil" | O Figma tem "Nome do perfil" na carteira, mas o contrato não tinha esse dado. Entrou `profileName` (opcional) na carteira, preenchido com o nome de exibição quando vazio. |
+| Carteiras: "Igual à carteira principal" | Copia para a secundária rede, nome do perfil, tipo, ENS, indicação, nome de exibição, apelido e e-mail, menos o endereço: a API recusa o mesmo endereço nas duas carteiras (409). |
 | Footer no mobile | Os frames mobile não têm footer (a barra inferior ocupa o rodapé), então ele só aparece a partir do tablet. |
 
+## Lighthouse
+
+`npm run lighthouse` faz o build, serve o `dist/` com `vite preview` e audita Início e Detalhe nos perfis mobile e desktop, 3 execuções cada, cada uma num Chrome novo. O resumo com versões e ambiente fica em [`lighthouse/reports/summary.md`](./lighthouse/reports/summary.md), ao lado dos relatórios HTML e JSON da execução mediana.
+
+| Tela | Perfil | Performance | Acessibilidade | Boas práticas | SEO | LCP | CLS | TBT |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Início | mobile | 86 | 100 | 100 | 100 | 4,1 s | 0 | 71 ms |
+| Início | desktop | 99 | 100 | 100 | 100 | 0,8 s | 0,001 | 0 ms |
+| Detalhe | mobile | 87 | 100 | 100 | 100 | 4,0 s | 0 | 34 ms |
+| Detalhe | desktop | 99 | 100 | 100 | 100 | 0,8 s | 0 | 0 ms |
+
+Metas: Performance ≥ 90, Acessibilidade ≥ 95, Boas práticas ≥ 95, SEO ≥ 90.
+
+- **Desktop** passa em tudo. O CLS de 0,18 no Detalhe vinha do skeleton, mais baixo que a página carregada: o rodapé aparecia na tela e era empurrado. O skeleton agora ocupa pelo menos a altura da viewport.
+- **Mobile fica em 86 a 87 de Performance**, abaixo da meta. A causa é o LCP de cerca de 4 s no 4G lento simulado: a app só renderiza depois que o MSW inicia, e o chunk do MSW tem cerca de 170 kB comprimidos (perto de 40% do JS da primeira tela, com `tough-cookie` e `tldts`, que o MSW usa para cookies). Esse custo não existiria numa API de verdade. Acessibilidade, Boas práticas e SEO ficam em 100.
+- **O que foi feito:** `modulepreload` do chunk do MSW no HTML, injetado no build por um plugin do `vite.config.ts` só quando `VITE_ENABLE_MOCKS=true`. Ele baixa em paralelo com o bundle principal em vez de esperar o `index.js` executar (cerca de 200 ms a menos no LCP mobile).
+- **O que não foi feito, e por quê:** trocar `tough-cookie` por um stub tiraria bytes, mas mexe na parte interna do MSW, que guarda cookies com ele. Renderizar antes do worker exigiria que o Axios esperasse o MSW, ligando a camada de API aos mocks, o que as regras do projeto proíbem. Um shell estático no HTML não ajudaria, porque o LCP é a arte do NFT ou o hero, que dependem dos dados.
+
 ## Decisões
+
+### Bloco 6: perfil, carteiras, acessibilidade e Lighthouse
+
+- **Campos de carteira compartilhados** (`src/features/wallets/wallet-schema.ts` e `wallet-fields.tsx`): o pagamento e a tela de Carteiras usam o mesmo schema, os mesmos campos e o mesmo mapa de erros da API. O formulário fica com o `FormProvider` de cada tela.
+- **Perfil atualiza a sessão:** salvar o perfil ou o avatar grava a resposta no cache do perfil e no `session.user`, e o header muda sem nova busca. Trocar a senha encerra as outras sessões no servidor simulado; a atual continua.
+- **Rótulos com altura fixa** no `FieldShell` (a do asterisco no Figma), para campos com e sem asterisco alinharem na mesma linha do grid.
+- **Correções do axe:** o grupo "Taxa de rede" do resumo tinha `dt` e `dd` dentro de um `div` aninhado, com a nota "Taxa estimada" solta no `dl` (agora a nota fica dentro do `dd`). O botão da conta tinha a inicial do avatar como texto visível fora do nome acessível (WCAG 2.5.3); a inicial agora vem de CSS. Os subtítulos da aba de detalhes eram `h3` logo depois do `h1` no mobile e viraram `h2`.
+- **Reflow:** testado em 320 px de largura, o equivalente a 1280 px com zoom de 400%. Cobre também o zoom de 200% pedido pela WCAG 1.4.4.
+
 
 ### Bloco 5: testes e documentação
 

@@ -1,0 +1,60 @@
+{
+  "versions": {
+    "lighthouse": "13.6.0",
+    "chrome": "156.0.0.0"
+  },
+  "summary": [
+    {
+      "page": "Início",
+      "profile": "mobile",
+      "performance": 86,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "fcp": 762,
+      "lcp": 4138,
+      "cls": 0,
+      "tbt": 71,
+      "runs": "86 / 86 / 86"
+    },
+    {
+      "page": "Início",
+      "profile": "desktop",
+      "performance": 99,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "fcp": 213,
+      "lcp": 840,
+      "cls": 0.001,
+      "tbt": 0,
+      "runs": "99 / 99 / 99"
+    },
+    {
+      "page": "Detalhe",
+      "profile": "mobile",
+      "performance": 87,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "fcp": 763,
+      "lcp": 3991,
+      "cls": 0,
+      "tbt": 34,
+      "runs": "87 / 87 / 86"
+    },
+    {
+      "page": "Detalhe",
+      "profile": "desktop",
+      "performance": 99,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "fcp": 212,
+      "lcp": 840,
+      "cls": 0,
+      "tbt": 0,
+      "runs": "99 / 99 / 99"
+    }
+  ]
+}

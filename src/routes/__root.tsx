@@ -21,7 +21,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 /** Telas que no Figma usam o header com divisória e a barra inferior no mobile. */
-const DIVIDER_ROUTES = ["/", "/login", "/cadastro"];
+const DIVIDER_ROUTES = ["/", "/login", "/cadastro", "/perfil", "/perfil/carteiras"];
 
 function RootLayout() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });

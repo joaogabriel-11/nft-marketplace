@@ -339,13 +339,13 @@ function DetailsTabs({ nft }: { nft: NftDetail }) {
         {nft.description.map((paragraph) => (
           <p key={paragraph.slice(0, 24)}>{paragraph}</p>
         ))}
-        <h3 className="font-bold text-foreground">Rede:</h3>
+        <h2 className="font-bold text-foreground">Rede:</h2>
         <p>Cunhado na {NETWORK_LABELS[nft.network]} com procedência imutável e metadados armazenados no IPFS.</p>
-        <h3 className="font-bold text-foreground">Contrato:</h3>
+        <h2 className="font-bold text-foreground">Contrato:</h2>
         <p>
           <span title={nft.contractAddress}>{shortAddress(nft.contractAddress)}</span> • Contrato inteligente ERC-721 verificado.
         </p>
-        <h3 className="font-bold text-foreground">Direitos autorais:</h3>
+        <h2 className="font-bold text-foreground">Direitos autorais:</h2>
         <p>
           Direitos autorais do criador: {nft.royaltyPercent}% nas vendas secundárias, pagos automaticamente pelos mercados
           compatíveis.
@@ -396,7 +396,8 @@ function RelatedNfts({ id }: { id: string }) {
 /** Mesmo esqueleto da tela: usado no carregamento da rota (pendingComponent). */
 export function NftDetailSkeleton() {
   return (
-    <div aria-busy="true" className="flex flex-col gap-8">
+    // min-h-dvh: a tela carregada é mais alta que a viewport; sem isso o rodapé aparece e depois é empurrado (CLS).
+    <div aria-busy="true" className="flex min-h-dvh flex-col gap-8">
       <p role="status" className="sr-only">
         Carregando NFT…
       </p>

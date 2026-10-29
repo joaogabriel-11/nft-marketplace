@@ -5,7 +5,7 @@ Todas as APIs (REST e Socket.IO) são simuladas com MSW na camada de rede, inclu
 
 **Demo:** https://nft-marketplace-one-fawn.vercel.app · **Repositório:** https://github.com/joaogabriel-11/nft-marketplace
 
-Prontos: Início (catálogo com busca, filtros, ordenação e paginação na URL), Detalhe do NFT, Login, Cadastro, Carrinho, Pagamento e Confirmação de pedido, em desktop e mobile, com tempo real via Socket.IO (preço, disponibilidade e pedidos). Perfil e Carteiras entram no Bloco 6.
+Telas: Início (catálogo com busca, filtros, ordenação e paginação na URL), Detalhe do NFT, Login, Cadastro, Carrinho, Pagamento, Confirmação de pedido, Perfil (dados, avatar e senha) e Carteiras (principal e secundária), em desktop e mobile, com tempo real via Socket.IO (preço, disponibilidade e pedidos).
 
 ## Setup
 
@@ -53,7 +53,7 @@ Cupons: `KURIO10` (10%), `GENESIS25` (25%) e `EXPIRADO` (expirado). Qualquer out
 | `npm run test:e2e:deploy` | Roda a suíte contra a demo publicada (`-- --url=<outra url>` para outra) |
 | `npm run test:visual` | Regressão visual de Início, Detalhe, Carrinho e Pagamento |
 | `npm run test:visual:update` | Regera as baselines visuais |
-| `npm run lighthouse` | Build e auditoria Lighthouse (3 medições por perfil). Relatórios em `lighthouse/reports/` |
+| `npm run lighthouse` | Build e Lighthouse de Início e Detalhe, mobile e desktop, 3 execuções cada. Resumo em `lighthouse/reports/summary.md` (`-- --url=<url>` audita outro endereço) |
 | `node scripts/optimize-images.mjs <pasta>` | Regera os WebP das artes a partir dos PNGs exportados do Figma |
 
 ## Cenários e reset
@@ -124,6 +124,10 @@ const dev = (path, body, method = "POST") =>
 | Clique repetido | Clique duas vezes em "Confirmar pagamento" | Um único pedido. |
 | Pagamento recusado | `?scenario=payment-rejected` | "Pagamento recusado", com o motivo e o carrinho preservado. |
 | Carteira recusada | `?scenario=wallet-rejected`, "Confirmar compra" | "A conexão foi recusada na carteira"; a segunda tentativa conecta. |
+| Perfil e carteiras sem permissão | Logado, `?scenario=forbidden` em `/perfil` ou `/perfil/carteiras` | Mensagem de erro com "Tentar novamente"; volte para `default` e tente de novo. |
+| Conflitos no perfil | Em `/perfil`, use o nome de usuário `bruno.costa` | "Este nome de usuário já está em uso" no próprio campo. |
+| Avatar recusado | Em `/perfil`, envie um arquivo que não seja PNG, JPG ou WEBP, ou maior que 5 MB | Erro abaixo do avatar; nada é enviado. |
+| Carteira duplicada | Em `/perfil/carteiras`, use na secundária o endereço da principal | "Este endereço já está na sua outra carteira" (409). |
 | Mudança em tempo real | Carrinho aberto + `PATCH` de preço pelo controle de simulação | Aviso no carrinho e resumo atualizado; com a revisão aberta, "Atualizar cotação". |
 | Queda do tempo real | `dev("/realtime/disconnect", { blockMs: 5000 })` | Toast "Reconectando…"; ao voltar, os dados da tela são buscados de novo pela REST. |
 | Pedido pendente após refresh | Confirme o pagamento e recarregue a página antes de concluir | O pedido é retomado (banner "Você tem um pedido em processamento") sem criar outro. |
@@ -134,7 +138,10 @@ const dev = (path, body, method = "POST") =>
 - **Como rodam:** contra o build de produção servido pelo `vite preview` (o mesmo artefato do deploy), em Chromium desktop (1440×900) e mobile (390×844). Cada teste parte de um contexto novo, com banco resetado e cenário conhecido.
 - **Relógio:** os cenários sensíveis a tempo usam `page.clock` (expiração de cotação, TTL de sessão, liquidação do pagamento). Os eventos de tempo real são disparados no servidor simulado e chegam pelo `socket.io-client` real.
 - **Relatórios:** o HTML fica em `playwright-report/` (`npm run test:e2e:report`), e os traces das falhas em `test-results/` (`npx playwright show-trace <arquivo>`).
+- **Acessibilidade:** `e2e/ui/a11y.spec.ts` roda o axe-core (WCAG 2.1 A e AA) em todas as telas, inclusive a revisão do pagamento e o recibo, e falha em violações sérias ou críticas. Também confere que nenhuma tela rola na horizontal em 320 px (equivale a 1280 px com zoom de 400%) e que o shimmer para com `prefers-reduced-motion`. O teclado é coberto em `e2e/ui/keyboard.spec.ts`.
 - **Regressão visual:** baselines versionadas em `e2e/visual/__screenshots__`, com dados estáveis (reset, cenário `instant`, relógio fixo). Elas são geradas no Windows; a renderização de fontes muda entre sistemas, por isso o projeto visual roda localmente e fica fora do CI Linux. Para outra plataforma, rode `npm run test:visual:update` nela.
 - **CI:** o GitHub Actions (`.github/workflows/ci.yml`) roda typecheck, lint, build e `test:e2e` em Ubuntu a cada push, e publica o relatório e os traces como artefatos.
+
+**Lighthouse** (build local, medianas de 3 execuções; detalhes e relatórios em [`lighthouse/reports/summary.md`](./lighthouse/reports/summary.md)): ver a tabela e a justificativa do mobile em [ARCHITECTURE.md](./ARCHITECTURE.md#lighthouse).
 
 Arquitetura, contratos, cache, sessão, tempo real, matriz de testes, limitações e desvios do Figma estão em [ARCHITECTURE.md](./ARCHITECTURE.md).

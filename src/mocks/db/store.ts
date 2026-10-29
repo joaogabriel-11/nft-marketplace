@@ -4,7 +4,7 @@ import type { DbState } from "./schema";
 
 const STORAGE_KEY = "kurio:mock-db";
 /** Incrementar quando o formato do DbState ou as fixtures mudarem: dados antigos são re-semeados. */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /** Mudanças relevantes para tempo real. O transporte Socket.IO (Bloco 4) assina este canal. */
 export type DbChange =

@@ -327,12 +327,14 @@ export function TotalsList({ totals, compact }: { totals: Cart["totals"]; compac
         <dt>Desconto do lançamento</dt>
         <dd>{discount}</dd>
       </div>
-      <div className="flex flex-col items-end gap-1">
-        <div className="flex w-full items-center justify-between">
-          <dt>Taxa de rede</dt>
-          <dd className="text-18 leading-4">{formatEth(totals.networkFeeEth)}</dd>
-        </div>
-        <span className="text-12 leading-4 text-text-accent">Taxa estimada</span>
+      {/* dt/dd precisam ser filhos diretos do grupo: a nota "Taxa estimada" fica dentro do dd. */}
+      <div className="flex items-start justify-between">
+        <dt>Taxa de rede</dt>
+        <dd className="flex flex-col items-end gap-1">
+          {/* Mesma altura de linha do dt (15px × 1.5): valor alinhado ao rótulo como nas outras linhas. */}
+          <span className="text-18 leading-[22.5px]">{formatEth(totals.networkFeeEth)}</span>
+          <span className="text-12 leading-4 text-text-accent">Taxa estimada</span>
+        </dd>
       </div>
       <div className="flex items-center justify-between border-t-[0.3px] border-foreground/30 pt-3 font-bold">
         <dt className="text-16">Total</dt>

@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useIsMutating } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import {
   quoteOutdatedDetailsSchema,
@@ -15,7 +15,7 @@ import {
 import { isApiError } from "@/api/errors";
 import { Link } from "@tanstack/react-router";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { FieldShell, SelectControl, TextAreaControl, TextControl } from "@/components/ui/field";
+import { FieldShell, TextAreaControl, TextControl } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/features/auth/session";
 import { CouponForm, MobileHeader, TotalsList } from "@/features/cart/cart-page";
@@ -30,6 +30,8 @@ import {
   walletToFields,
   type CheckoutFormValues,
 } from "./checkout-form";
+import { WalletFields } from "@/features/wallets/wallet-fields";
+import { WALLET_FIELD_ERRORS } from "@/features/wallets/wallet-schema";
 import { PendingOrderBanner } from "./pending-order-banner";
 import { CREATE_ORDER_KEY, useConnectWallet, useCreateOrder, useCreateQuote, useDisconnectWallet, useSaveWallet, useWallets } from "./queries";
 import { ReviewDialog } from "./review-dialog";
@@ -273,7 +275,7 @@ function CheckoutForm({ userId, wallets }: { userId: string; wallets: { primary:
     if (isApiError(error) && error.fieldErrors && Object.keys(error.fieldErrors).length) {
       setShowForm(true);
       for (const [field, message] of Object.entries(error.fieldErrors)) {
-        const map: Record<string, keyof CheckoutFormValues> = { address: "address", displayName: "walletDisplayName", network: "network" };
+        const map: Record<string, keyof CheckoutFormValues> = { ...WALLET_FIELD_ERRORS, displayName: "buyerDisplayName" };
         if (map[field]) form.setError(map[field], { type: "server", message });
       }
       return;
@@ -340,6 +342,7 @@ function CheckoutForm({ userId, wallets }: { userId: string; wallets: { primary:
   const network = values.network ? NETWORK_LABELS[values.network as Wallet["network"]] : null;
 
   return (
+    <FormProvider {...form}>
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-8" aria-labelledby="checkout-title">
       <MobileHeader title="Pagamento com carteira" />
       <nav aria-label="Trilha de navegação" className="hidden text-15 leading-4 font-bold md:block">
@@ -410,40 +413,8 @@ function CheckoutForm({ userId, wallets }: { userId: string; wallets: { primary:
               <FieldShell label="Nome de usuário" required hint="Vinculado à sua conta.">
                 {(a11y) => <TextControl {...a11y} value={user?.username ?? ""} readOnly aria-readonly />}
               </FieldShell>
-              <FieldShell label="Rede" required error={errors.network?.message}>
-                {(a11y) => (
-                  <SelectControl {...a11y} required {...register("network")}>
-                    <option value="">Selecione uma rede</option>
-                    <option value="ethereum">Ethereum</option>
-                    <option value="polygon">Polygon</option>
-                    <option value="solana">Solana</option>
-                  </SelectControl>
-                )}
-              </FieldShell>
-              <FieldShell label="Nome do perfil" required error={errors.walletDisplayName?.message}>
-                {(a11y) => <TextControl {...a11y} {...register("walletDisplayName")} />}
-              </FieldShell>
-              <FieldShell label="Endereço da carteira" required error={errors.address?.message}>
-                {(a11y) => <TextControl {...a11y} placeholder="Endereço 0x da carteira" autoComplete="off" spellCheck={false} {...register("address")} />}
-              </FieldShell>
-              <FieldShell label="ENS ou carteira secundária" error={errors.ensName?.message} hint="Opcional. Ex.: nome.eth">
-                {(a11y) => <TextControl {...a11y} placeholder="ENS ou carteira secundária (opcional)" {...register("ensName")} />}
-              </FieldShell>
-              <FieldShell label="Tipo de carteira" required error={errors.type?.message}>
-                {(a11y) => (
-                  <SelectControl {...a11y} required {...register("type")}>
-                    <option value="">Selecione uma carteira</option>
-                    {PROVIDERS.map((provider) => (
-                      <option key={provider.type} value={provider.type}>
-                        {WALLET_TYPE_LABELS[provider.type]}
-                      </option>
-                    ))}
-                  </SelectControl>
-                )}
-              </FieldShell>
-              <FieldShell label="Código de indicação" error={errors.referralCode?.message} hint="Opcional.">
-                {(a11y) => <TextControl {...a11y} autoComplete="off" {...register("referralCode")} />}
-              </FieldShell>
+              {/* Rede, nome do perfil, endereço, ENS, tipo e indicação: as mesmas linhas da tela de Carteiras. */}
+              <WalletFields />
               <FieldShell label="E-mail" required error={errors.email?.message}>
                 {(a11y) => <TextControl {...a11y} type="email" autoComplete="email" {...register("email")} />}
               </FieldShell>
@@ -592,6 +563,7 @@ function CheckoutForm({ userId, wallets }: { userId: string; wallets: { primary:
         onBackToCart={() => void navigate({ to: "/carrinho" })}
       />
     </form>
+    </FormProvider>
   );
 }
 

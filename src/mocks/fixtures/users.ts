@@ -40,6 +40,7 @@ export const WALLET_FIXTURES: WalletRecord[] = [
     userId: "usr_ana",
     slot: "primary",
     displayName: "Ana Ribeiro",
+    profileName: "ana.colecionadora",
     nickname: "Cofre da Ana",
     network: "ethereum",
     type: "metamask",

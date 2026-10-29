@@ -19,6 +19,8 @@ export const walletSchema = z.object({
   id: idSchema,
   slot: walletSlotSchema,
   displayName: z.string(),
+  /** "Nome do perfil" do Figma: nome público ligado à carteira. */
+  profileName: z.string().nullable(),
   nickname: z.string().nullable(),
   network: networkSchema,
   type: walletTypeSchema,
@@ -47,6 +49,7 @@ const optionalText = (max: number) =>
 export const upsertWalletInputSchema = z
   .object({
     displayName: z.string().trim().min(2, "Digite o nome de exibição").max(40),
+    profileName: optionalText(40),
     nickname: optionalText(32),
     network: networkSchema,
     type: walletTypeSchema,

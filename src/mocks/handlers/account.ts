@@ -121,6 +121,7 @@ export const accountHandlers = [
       const existing = draft.wallets.find((w) => w.userId === user.id && w.slot === slot.data);
       const values = {
         displayName: input.displayName,
+        profileName: input.profileName ?? null,
         nickname: input.nickname ?? null,
         network: input.network,
         type: input.type,

@@ -67,6 +67,12 @@ export function MobileTabBar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top">
                 <DropdownMenuLabel className="px-3 py-2 text-12 text-text-secondary">{user.displayName}</DropdownMenuLabel>
+                <DropdownMenuItem asChild>
+                  <Link to="/perfil">Meu perfil</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/perfil/carteiras">Carteiras</Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => logout.mutate()}>Sair</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

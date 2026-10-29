@@ -79,13 +79,26 @@ export function SiteHeader({ divider = false }: { divider?: boolean }) {
                 className="flex h-[35px] items-center gap-2 rounded-[6px] border border-primary px-3 text-14 text-text-accent"
                 aria-label={`Conta de ${user.displayName}`}
               >
-                <span aria-hidden="true" className="grid size-6 place-items-center rounded-full bg-primary text-12 font-bold text-ink">
-                  {user.displayName.charAt(0).toUpperCase()}
-                </span>
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="" width={24} height={24} className="size-6 rounded-full object-cover" />
+                ) : (
+                  // Inicial via CSS: texto visível do botão continua sendo só o nome (WCAG 2.5.3, rótulo no nome).
+                  <span
+                    aria-hidden="true"
+                    data-initial={user.displayName.charAt(0).toUpperCase()}
+                    className="grid size-6 place-items-center rounded-full bg-primary text-12 font-bold text-ink before:content-[attr(data-initial)]"
+                  />
+                )}
                 <span className="max-w-28 truncate">{user.displayName}</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuLabel className="px-3 py-2 text-12 text-text-secondary">{user.email}</DropdownMenuLabel>
+                <DropdownMenuItem asChild>
+                  <Link to="/perfil">Meu perfil</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/perfil/carteiras">Carteiras</Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => logout.mutate()}>
                   <img src={logoutIcon} alt="" width={18} height={17} className="invert" />
                   Sair

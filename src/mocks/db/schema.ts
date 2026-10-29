@@ -101,6 +101,7 @@ export interface WalletRecord {
   userId: string;
   slot: WalletSlot;
   displayName: string;
+  profileName: string | null;
   nickname: string | null;
   network: Network;
   type: WalletType;

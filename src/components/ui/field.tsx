@@ -22,7 +22,8 @@ export function FieldShell({ label, required, error, hint, className, children }
   const describedBy = [error && errorId, hint && hintId].filter(Boolean).join(" ") || undefined;
   return (
     <div className={cn("flex flex-col", className)}>
-      <label htmlFor={id} className="flex items-center gap-1 text-15 leading-[15px]">
+      {/* Altura fixa (a do asterisco no Figma): rótulos com e sem * alinham na mesma linha do grid. */}
+      <label htmlFor={id} className="mb-2.5 flex h-[29px] items-center gap-1 text-15 leading-[15px]">
         {label}
         {required && (
           <span aria-hidden="true" className="text-22 leading-[29px] text-coral">
@@ -31,7 +32,7 @@ export function FieldShell({ label, required, error, hint, className, children }
         )}
         {required && <span className="sr-only">(obrigatório)</span>}
       </label>
-      <div className={cn(!required && "mt-[14px]")}>
+      <div>
         {children({ id, "aria-invalid": error ? true : undefined, "aria-describedby": describedBy, "aria-required": required || undefined })}
       </div>
       {hint && (
