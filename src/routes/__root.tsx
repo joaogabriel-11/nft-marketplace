@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -7,6 +8,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { buttonVariants } from "@/components/ui/button";
 import { sessionQueryOptions } from "@/features/auth/session";
 import { RealtimeBridge } from "@/lib/realtime/realtime-bridge";
+import { installSameHashScroll } from "@/lib/hash-scroll";
 import { cn } from "@/lib/utils";
 
 export interface RouterContext {
@@ -25,6 +27,7 @@ const DIVIDER_ROUTES = ["/", "/login", "/cadastro", "/perfil", "/perfil/carteira
 
 function RootLayout() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  useEffect(installSameHashScroll, []);
   // Frames mobile do fluxo de compra (detalhe, carrinho, pagamento) não têm a barra inferior.
   const hideTabBar = ["/nfts/", "/carrinho", "/pagamento", "/pedidos/"].some((prefix) => pathname.startsWith(prefix));
 

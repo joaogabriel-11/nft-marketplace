@@ -31,3 +31,6 @@ lighthouse/reports/tmp
 *.njsproj
 *.sln
 *.sw?
+
+# Arquivos de trava do Claude Code (estado local da sessão)
+.claude/*.lock

@@ -37,12 +37,12 @@ export function SiteHeader({ divider = false }: { divider?: boolean }) {
   const pathname = useRouterState({ select: (state) => state.location.href });
 
   return (
-    <header className={cn("hidden md:block", divider && "border-b-[0.3px] border-foreground/40")}>
+    <header className={cn("hidden md:block", divider && "border-b-[0.3px] border-primary")}>
       <div className="flex items-start justify-between pb-3">
-        <Link to="/" className="w-40 pt-2 text-14 font-bold tracking-[1.4px]" aria-label="Kurio, página inicial">
+        <Link to="/" className="pt-2 text-14 font-bold tracking-[1.4px] lg:w-40" aria-label="Kurio, página inicial">
           KURIO
         </Link>
-        <nav aria-label="Principal" className="flex gap-6 lg:gap-10">
+        <nav aria-label="Principal" className="flex gap-5 lg:gap-10">
           <Link to="/" aria-current={active === "home" ? "page" : undefined}>
             <NavItem active={active === "home"}>Início</NavItem>
           </Link>

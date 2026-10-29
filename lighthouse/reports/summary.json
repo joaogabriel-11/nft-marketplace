@@ -7,15 +7,15 @@
     {
       "page": "Início",
       "profile": "mobile",
-      "performance": 86,
+      "performance": 82,
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "fcp": 762,
-      "lcp": 4138,
+      "fcp": 771,
+      "lcp": 4417,
       "cls": 0,
-      "tbt": 71,
-      "runs": "86 / 86 / 86"
+      "tbt": 190,
+      "runs": "83 / 82 / 80"
     },
     {
       "page": "Início",
@@ -24,8 +24,8 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "fcp": 213,
-      "lcp": 840,
+      "fcp": 226,
+      "lcp": 916,
       "cls": 0.001,
       "tbt": 0,
       "runs": "99 / 99 / 99"
@@ -33,15 +33,15 @@
     {
       "page": "Detalhe",
       "profile": "mobile",
-      "performance": 87,
+      "performance": 82,
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "fcp": 763,
-      "lcp": 3991,
+      "fcp": 771,
+      "lcp": 4191,
       "cls": 0,
-      "tbt": 34,
-      "runs": "87 / 87 / 86"
+      "tbt": 235,
+      "runs": "82 / 82 / 85"
     },
     {
       "page": "Detalhe",
@@ -50,8 +50,8 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "fcp": 212,
-      "lcp": 840,
+      "fcp": 224,
+      "lcp": 921,
       "cls": 0,
       "tbt": 0,
       "runs": "99 / 99 / 99"

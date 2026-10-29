@@ -1,12 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import arrowRight from "@/assets/icons/arrow-right.svg";
-import dots from "@/assets/icons/dots.svg";
 import mobileArrow from "@/assets/icons/m-arrow-right.svg";
 import heroMaskMobile from "@/assets/icons/m-hero-mask.svg";
 import promoMask from "@/assets/icons/promo-mask.svg";
 import { buttonVariants } from "@/components/ui/button";
 import { notifyUnavailable } from "@/lib/notify";
 import { cn } from "@/lib/utils";
+import { HeroControls, HeroSlides } from "./hero-carousel";
+import { HERO_SLIDES, useHeroCarousel } from "./hero-carousel-state";
 
 const ART = {
   emerald: "/images/nfts/emerald",
@@ -17,13 +18,23 @@ const ART = {
 const art = (key: keyof typeof ART, size: 512 | 1024 = 512) => `${ART[key]}-${size}.webp`;
 const artSrcSet = (key: keyof typeof ART) => `${art(key)} 512w, ${art(key, 1024)} 1024w`;
 
-/** Hero do Figma: desktop (450px, arte à direita) e mobile (card de 190px com duas artes). */
+/**
+ * Hero do Figma: desktop (450px, arte à direita, sobre o fundo da página) e mobile (card de 190px
+ * com duas artes). Os três pontos do Figma são um carrossel: cada slide é a arte de um NFT.
+ */
 export function HomeHero() {
+  const carousel = useHeroCarousel(HERO_SLIDES.length);
+  const next = HERO_SLIDES[(carousel.index + 1) % HERO_SLIDES.length];
   return (
     <>
       <section
         aria-labelledby="hero-title"
-        className="relative hidden h-[450px] items-center justify-between overflow-hidden rounded-[24px] bg-linear-to-br from-surface-card to-surface-raised pl-10 md:flex"
+        aria-roledescription="carrossel"
+        {...carousel.rootProps}
+        className={cn(
+          "relative hidden h-[450px] touch-pan-y items-center justify-between overflow-hidden rounded-[24px] pl-10 select-none md:flex",
+          carousel.offset === null ? "cursor-grab" : "cursor-grabbing",
+        )}
       >
         <div className="flex max-w-[600px] flex-col items-end gap-11 py-10 pr-6">
           <div className="flex w-full flex-col gap-8">
@@ -43,24 +54,34 @@ export function HomeHero() {
               EXPLORAR
             </Link>
           </div>
-          <img src={dots} alt="" aria-hidden="true" width={40} height={8} />
+          <HeroControls index={carousel.index} go={carousel.go} />
         </div>
-        <img
-          src={art("emerald", 1024)}
-          srcSet={artSrcSet("emerald")}
+        <HeroSlides
+          index={carousel.index}
+          playing={carousel.playing}
+          offset={carousel.offset}
+          src={(slide) => art(slide.art, 1024)}
+          srcSet={(slide) => artSrcSet(slide.art)}
           sizes="450px"
-          alt="Emerald Ape #042, macaco de óculos e jaqueta verde"
-          width={450}
-          height={450}
-          fetchPriority="high"
-          className="size-[450px] shrink-0 rounded-[24px] object-cover max-lg:size-[360px]"
+          size={450}
+          className="size-[450px] max-lg:size-[360px]"
+          imageClassName="rounded-[24px]"
         />
       </section>
 
-      <section aria-labelledby="hero-title-mobile" className="relative h-[190px] overflow-hidden rounded-[12px] p-4 md:hidden">
-        <img src={heroMaskMobile} alt="" aria-hidden="true" className="absolute inset-0 size-full" />
-        <div className="relative flex h-full flex-col items-center gap-4">
-          <div className="flex w-full flex-1 items-center gap-2">
+      {/* Mobile: o conteúdo do Figma ocupa o card de 190px inteiro; os pontos ficam logo abaixo dele. */}
+      <section
+        aria-labelledby="hero-title-mobile"
+        aria-roledescription="carrossel"
+        {...carousel.rootProps}
+        className={cn(
+          "flex touch-pan-y flex-col items-center gap-2 select-none md:hidden",
+          carousel.offset === null ? "cursor-grab" : "cursor-grabbing",
+        )}
+      >
+        <div className="relative h-[190px] w-full overflow-hidden rounded-[12px] p-4">
+          <img src={heroMaskMobile} alt="" aria-hidden="true" className="absolute inset-0 size-full" />
+          <div className="relative flex h-full w-full items-center gap-2">
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <p className="text-12 leading-4 font-medium">Bem-vindo à Kurio</p>
               <h1 id="hero-title-mobile" className="max-w-[190px] text-18 leading-[29px] font-bold">
@@ -73,26 +94,29 @@ export function HomeHero() {
               </Link>
             </div>
             <div className="relative size-[138px] shrink-0">
-              <img
-                src={art("emerald")}
-                alt="Emerald Ape #042"
-                width={138}
-                height={138}
-                fetchPriority="high"
-                className="size-[138px] rounded-[16px] object-cover"
+              <HeroSlides
+                index={carousel.index}
+                playing={carousel.playing}
+                offset={carousel.offset}
+                src={(slide) => art(slide.art)}
+                sizes="138px"
+                size={138}
+                className="size-[138px]"
+                imageClassName="rounded-[16px]"
               />
+              {/* Miniatura decorativa do Figma: prévia do próximo slide. */}
               <img
-                src={art("violet")}
+                src={art(next.art)}
                 alt=""
                 aria-hidden="true"
                 width={58}
                 height={58}
-                className="absolute top-[88px] left-[14px] size-[58px] rounded-[16px] object-cover"
+                className="pointer-events-none absolute top-[88px] left-[14px] size-[58px] rounded-[16px] object-cover"
               />
             </div>
           </div>
-          <img src={dots} alt="" aria-hidden="true" width={33} height={7} />
         </div>
+        <HeroControls index={carousel.index} go={carousel.go} small />
       </section>
     </>
   );

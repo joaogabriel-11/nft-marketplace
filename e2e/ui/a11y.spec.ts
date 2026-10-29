@@ -118,18 +118,20 @@ test("axe: dialog de revisão do pagamento e recibo confirmado", async ({ page }
   await expectNoSeriousViolations(page, "recibo");
 });
 
-test.describe("reflow e zoom", () => {
-  // 320 px de largura equivale a 1280 px com zoom de 400% (WCAG 1.4.10).
-  test.use({ viewport: { width: 320, height: 720 } });
+// 320 px equivale a 1280 px com zoom de 400% (WCAG 1.4.10); 768 px é o tablet pedido no desafio.
+for (const width of [320, 768]) {
+  test.describe(`reflow em ${width} px`, () => {
+    test.use({ viewport: { width, height: 1024 } });
 
-  for (const screen of SCREENS) {
-    test(`sem rolagem horizontal em 320 px: ${screen.name}`, async ({ page }) => {
-      await screen.prepare(page);
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      expect(overflow, `${screen.name} transborda ${overflow}px na horizontal`).toBeLessThanOrEqual(0);
-    });
-  }
-});
+    for (const screen of SCREENS) {
+      test(`sem rolagem horizontal em ${width} px: ${screen.name}`, async ({ page }) => {
+        await screen.prepare(page);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        expect(overflow, `${screen.name} transborda ${overflow}px na horizontal`).toBeLessThanOrEqual(0);
+      });
+    }
+  });
+}
 
 const firstSkeleton = (page: Page) => page.locator("#catalogo .skeleton").filter({ visible: true }).first();
 

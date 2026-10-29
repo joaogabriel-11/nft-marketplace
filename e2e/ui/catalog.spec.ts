@@ -43,6 +43,47 @@ test.describe("catálogo (desktop)", () => {
     await expect(page).toHaveURL(/networks=polygon/);
   });
 
+  test("Mercado desce até o catálogo, inclusive quando a URL já está em #catalogo", async ({ page }) => {
+    await openApp(page);
+    await expect(catalogStatus(page)).toHaveText("45 NFTs encontrados");
+    const mercado = page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Mercado" });
+    const catalogTop = () => catalog(page).evaluate((element) => Math.round(element.getBoundingClientRect().top));
+
+    await mercado.click();
+    await expect(page).toHaveURL("/#catalogo");
+    await expect.poll(catalogTop).toBeLessThanOrEqual(30);
+
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await mercado.click();
+    await expect.poll(catalogTop).toBeLessThanOrEqual(30);
+  });
+
+  test("faixa de preço filtra pela API, vai para a URL e sobrevive ao refresh", async ({ page }) => {
+    await openApp(page);
+    await expect(catalogStatus(page)).toHaveText("45 NFTs encontrados");
+
+    // Teclado no slider: PageUp avança 10 passos de 0,01 ETH (0,02 → 1,92).
+    const minThumb = page.getByRole("slider", { name: "Preço mínimo" });
+    await minThumb.focus();
+    for (let i = 0; i < 19; i++) await minThumb.press("PageUp");
+    await expect(page.getByText(/^Preço: 1,92 - 12,30 ETH$/)).toBeVisible();
+    await page.getByRole("button", { name: "Aplicar" }).click();
+    await expect(page).toHaveURL(/minPrice=1\.92&maxPrice=12\.3/);
+
+    const expected = await call(page, "GET", "/nfts?minPrice=1.92&maxPrice=12.3&pageSize=9");
+    await expect(catalogStatus(page)).toHaveText(`${expected.body.total} NFTs encontrados`);
+    await expect(cardNames(page)).toHaveText(expected.body.items.map((item: { name: string }) => item.name));
+
+    // Link direto: valores numéricos da URL chegam como texto (ETH é string decimal).
+    await page.reload();
+    await expect(catalogStatus(page)).toHaveText(`${expected.body.total} NFTs encontrados`);
+    await expect(page.getByText(/^Preço: 1,92 - 12,30 ETH$/)).toBeVisible();
+
+    await page.getByRole("group", { name: "Faixa de preço" }).getByRole("button", { name: "Limpar" }).click();
+    await expect(page).not.toHaveURL(/minPrice/);
+    await expect(catalogStatus(page)).toHaveText("45 NFTs encontrados");
+  });
+
   test("abas e busca pelo header filtram a listagem", async ({ page }) => {
     await openApp(page);
     await page.getByRole("button", { name: "Novos lançamentos" }).click();
@@ -120,5 +161,78 @@ test.describe("catálogo (mobile)", () => {
     const solana = await call(page, "GET", "/nfts?q=nomad&networks=solana&pageSize=9");
     await expect(cardNames(page)).toHaveText(solana.body.items.map((item: { name: string }) => item.name));
     await expect(page.getByRole("button", { name: "Filtros, 1 ativos" })).toBeFocused();
+  });
+});
+
+test.describe("carrossel do hero", () => {
+  const hero = (page: Page) => page.locator("[aria-roledescription=carrossel]").filter({ visible: true });
+  const currentSlide = (page: Page) => hero(page).locator("[aria-roledescription=slide]:not([aria-hidden])");
+
+  test("pontos trocam o slide, a troca automática anda e para com o foco, e o slide leva ao NFT", async ({ page }) => {
+    await page.clock.install();
+    await openApp(page);
+    await expect(currentSlide(page)).toHaveAccessibleName("1 de 3: Emerald Ape #042");
+
+    // Troca automática a cada 6 s (ponteiro fora do carrossel).
+    await page.mouse.move(1, 1);
+    await page.clock.runFor(6_100);
+    await expect(currentSlide(page)).toHaveAccessibleName("2 de 3: Ivory Baron #088");
+
+    // Com o foco nos pontos, a troca automática para.
+    await hero(page).getByRole("button", { name: "Mostrar slide 3: Golden Beat #207" }).click();
+    await expect(currentSlide(page)).toHaveAccessibleName("3 de 3: Golden Beat #207");
+    await expect(hero(page).getByRole("button", { name: /Mostrar slide 3/ })).toHaveAttribute("aria-current", "true");
+    await page.mouse.move(1, 1);
+    await page.clock.runFor(13_000);
+    await expect(currentSlide(page)).toHaveAccessibleName("3 de 3: Golden Beat #207");
+
+    await currentSlide(page).getByRole("link").click();
+    await expect(page).toHaveURL("/nfts/golden-beat-207");
+  });
+
+  test("clicar, segurar e arrastar em qualquer ponto do hero troca o slide; arraste curto volta", async ({ page }) => {
+    await openApp(page);
+    // Começa no título: o hero inteiro aceita o arraste, não só a arte.
+    const box = (await hero(page).getByRole("heading", { level: 1 }).boundingBox())!;
+    const drag = async (dx: number) => {
+      const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x + dx, y, { steps: 10 });
+      await page.mouse.up();
+    };
+
+    await drag(-box.width / 2);
+    await expect(currentSlide(page)).toHaveAccessibleName("2 de 3: Ivory Baron #088");
+    await drag(box.width / 2);
+    await expect(currentSlide(page)).toHaveAccessibleName("1 de 3: Emerald Ape #042");
+    // Do primeiro para trás vai para o último.
+    await drag(box.width / 2);
+    await expect(currentSlide(page)).toHaveAccessibleName("3 de 3: Golden Beat #207");
+
+    await drag(30);
+    await expect(currentSlide(page)).toHaveAccessibleName("3 de 3: Golden Beat #207");
+    await expect(page).toHaveURL("/");
+
+    // Arrastar sobre o EXPLORAR troca o slide e não segue o link.
+    const explore = (await hero(page).getByRole("link", { name: "EXPLORAR", exact: true }).boundingBox())!;
+    await page.mouse.move(explore.x + explore.width / 2, explore.y + explore.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(explore.x - 150, explore.y + explore.height / 2, { steps: 10 });
+    await page.mouse.up();
+    await expect(currentSlide(page)).toHaveAccessibleName("1 de 3: Emerald Ape #042");
+    await expect(page).toHaveURL("/");
+  });
+
+  test.describe("com movimento reduzido", () => {
+    test.use({ reducedMotion: "reduce" });
+
+    test("não troca sozinho", async ({ page }) => {
+      await page.clock.install();
+      await openApp(page);
+      await page.mouse.move(1, 1);
+      await page.clock.runFor(13_000);
+      await expect(currentSlide(page)).toHaveAccessibleName("1 de 3: Emerald Ape #042");
+    });
   });
 });

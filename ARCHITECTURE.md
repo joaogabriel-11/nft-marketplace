@@ -96,6 +96,14 @@ Erros transversais simulados pelos cenários: 401, 403, 500 `internal_error`, 50
 - Qualquer mudança de filtro, aba, ordenação ou busca volta para a página 1. A digitação na busca usa `replace` (não polui o histórico); filtros e páginas criam entradas novas, então voltar e avançar refazem o caminho.
 - Os parâmetros da URL são exatamente os da API e a chave do cache. As listas são ordenadas antes de entrar na chave, então `musica,fotografia` e `fotografia,musica` compartilham o cache.
 
+### Rolagem até âncoras
+
+Links com âncora (Mercado e EXPLORAR levam a `/#catalogo`) descem suavemente pelo `defaultHashScrollIntoView` do router, e de forma instantânea com `prefers-reduced-motion`. Não uso `scroll-behavior: smooth` global no CSS porque ele também animaria a volta ao topo em toda troca de página. Quando a URL já é `/#catalogo` e o usuário rolou para cima, o router vê o mesmo endereço, não rola e ainda restaura a rolagem. Um listener de clique em fase de captura (`src/lib/hash-scroll.ts`) trata esse caso: consome o clique e rola até a âncora.
+
+### Leitura da URL
+
+O parser padrão do TanStack Router converte valores numéricos da query string em números (`?minPrice=1.92` vira `1.92`). Como ETH trafega sempre como string decimal, o schema recusava o valor e o descartava sem aviso, e a faixa de preço não filtrava. O mesmo valia para uma busca só de dígitos, como `?q=042`. O `parseSearch` do router (`src/router.tsx`) agora entrega tudo como texto, e cada rota converte o que precisa com zod (`page` usa `z.coerce`).
+
 ## Sessão na interface
 
 - A rota raiz chama `ensureQueryData(session)` antes da primeira tela, e o refresh recupera o usuário.
@@ -174,7 +182,7 @@ Isolamento: cada teste abre um contexto novo (storage e service worker limpos) c
 
 | Requisito do desafio | Testes |
 |---|---|
-| Busca, filtros combinados, ordenação, paginação e histórico | `ui/catalog`: filtros combinados…, abas e busca…, busca com debounce… (mobile) |
+| Busca, filtros combinados, ordenação, paginação e histórico | `ui/catalog`: filtros combinados…, Mercado desce até o catálogo…, faixa de preço filtra pela API…, carrossel do hero…, abas e busca…, busca com debounce… (mobile) |
 | Acesso direto ao detalhe e recurso inexistente | `ui/detail-auth`: acesso direto…, NFT inexistente… |
 | Cadastro, login, expiração, logout e troca de usuário | `ui/detail-auth`: login valida…, cadastro…, sessão expirada…, logout e troca…; `ui/clock`: sessão expira pelo tempo… |
 | Favoritos com falha e recuperação | `ui/detail-auth`: favorito com falha da API… |
@@ -211,6 +219,10 @@ Isolamento: cada teste abre um contexto novo (storage e service worker limpos) c
 | Avatar | O arquivo é recortado ao centro e reduzido para 256×256 em WebP no navegador (canvas) antes do envio: a API aceita até 512 KB, e uma foto de celular passaria disso. A origem aceita PNG, JPG ou WEBP de até 5 MB. |
 | Carteiras: "Nome do perfil" | O Figma tem "Nome do perfil" na carteira, mas o contrato não tinha esse dado. Entrou `profileName` (opcional) na carteira, preenchido com o nome de exibição quando vazio. |
 | Carteiras: "Igual à carteira principal" | Copia para a secundária rede, nome do perfil, tipo, ENS, indicação, nome de exibição, apelido e e-mail, menos o endereço: a API recusa o mesmo endereço nas duas carteiras (409). |
+| Hero do Início (desktop) | O Figma tem um retângulo atrás do hero (`Rectangle 3`). Por ajuste de design, o hero fica sobre o fundo da página, sem painel; o layout e o recuo de 40 px do texto seguem o Figma. |
+| Carrossel do hero | O Figma mostra três pontos, sem os outros slides desenhados. Cada ponto é um slide com a arte de um NFT do catálogo (Emerald Ape, Ivory Baron e Golden Beat), com link para o detalhe; título e texto ficam fixos. O ponto atual fica sólido e os outros com 40% de opacidade (o estado ativo não está desenhado). Os slides ficam lado a lado. Clicar, segurar e arrastar em qualquer ponto do hero (mouse, caneta ou dedo) faz a arte acompanhar o ponteiro, com o cursor de mão em toda a área. Ao soltar depois de 60 px, vai para o slide seguinte ou anterior. O arraste só começa depois de 6 px, então um clique simples ainda abre o NFT ou o EXPLORAR. O `dragstart` nativo é bloqueado no hero: sem isso, segurar sobre um link ou imagem iniciaria o arrastar-e-soltar do navegador e cancelaria o arraste. A troca é automática a cada 6 s e para com o ponteiro, o foco ou um arraste no carrossel; com `prefers-reduced-motion` ela não acontece. **Limitação conhecida:** por decisão de design não há botão de pausa. A WCAG 2.2.2 pede um para conteúdo que muda sozinho por mais de 5 s; aqui a pausa existe só pelo hover e pelo foco (inclusive pelo teclado, nos pontos). No mobile, os pontos ficam abaixo do card de 190 px, porque o conteúdo do Figma ocupa o card inteiro. A semântica segue o padrão de carrossel do WAI-ARIA (APG): `aria-roledescription`, slides inativos com `inert` e anúncio da troca só fora da reprodução automática. |
+| Header no tablet | Entre 768 e 1023 px, o logo usa só a largura do texto (no desktop são 160 px fixos, como no Figma) e os itens do menu ficam a 20 px um do outro. Em 768 px sobravam 3 px entre "Aprenda" e os ícones. |
+| Divisória do header | No Figma é `foreground` com 40% de opacidade. Por ajuste de design, usa a cor `primary` (#D28A4C), a mesma do indicador do item ativo. |
 | Footer no mobile | Os frames mobile não têm footer (a barra inferior ocupa o rodapé), então ele só aparece a partir do tablet. |
 
 ## Lighthouse
@@ -219,16 +231,18 @@ Isolamento: cada teste abre um contexto novo (storage e service worker limpos) c
 
 | Tela | Perfil | Performance | Acessibilidade | Boas práticas | SEO | LCP | CLS | TBT |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| Início | mobile | 86 | 100 | 100 | 100 | 4,1 s | 0 | 71 ms |
-| Início | desktop | 99 | 100 | 100 | 100 | 0,8 s | 0,001 | 0 ms |
-| Detalhe | mobile | 87 | 100 | 100 | 100 | 4,0 s | 0 | 34 ms |
-| Detalhe | desktop | 99 | 100 | 100 | 100 | 0,8 s | 0 | 0 ms |
+| Início | mobile | 82 | 100 | 100 | 100 | 4,4 s | 0 | 190 ms |
+| Início | desktop | 99 | 100 | 100 | 100 | 0,9 s | 0,001 | 0 ms |
+| Detalhe | mobile | 82 | 100 | 100 | 100 | 4,2 s | 0 | 235 ms |
+| Detalhe | desktop | 99 | 100 | 100 | 100 | 0,9 s | 0 | 0 ms |
+
+As medições locais variam com a carga da máquina. Com a máquina livre, o mobile mediu 86 (Início) e 87 (Detalhe), com TBT abaixo de 75 ms. Na rodada acima havia outros servidores de desenvolvimento ativos, e o Detalhe, que não mudou entre as duas rodadas, caiu na mesma proporção que o Início. O `summary.md` e os relatórios versionados são desta última rodada.
 
 Metas: Performance ≥ 90, Acessibilidade ≥ 95, Boas práticas ≥ 95, SEO ≥ 90.
 
 - **Desktop** passa em tudo. O CLS de 0,18 no Detalhe vinha do skeleton, mais baixo que a página carregada: o rodapé aparecia na tela e era empurrado. O skeleton agora ocupa pelo menos a altura da viewport.
-- **Mobile fica em 86 a 87 de Performance**, abaixo da meta. A causa é o LCP de cerca de 4 s no 4G lento simulado: a app só renderiza depois que o MSW inicia, e o chunk do MSW tem cerca de 170 kB comprimidos (perto de 40% do JS da primeira tela, com `tough-cookie` e `tldts`, que o MSW usa para cookies). Esse custo não existiria numa API de verdade. Acessibilidade, Boas práticas e SEO ficam em 100.
-- **O que foi feito:** `modulepreload` do chunk do MSW no HTML, injetado no build por um plugin do `vite.config.ts` só quando `VITE_ENABLE_MOCKS=true`. Ele baixa em paralelo com o bundle principal em vez de esperar o `index.js` executar (cerca de 200 ms a menos no LCP mobile).
+- **Mobile fica entre 82 e 87 de Performance**, abaixo da meta. A causa é o LCP de cerca de 4 s no 4G lento simulado: a app só renderiza depois que o MSW inicia, e o chunk do MSW tem cerca de 170 kB comprimidos (perto de 40% do JS da primeira tela, com `tough-cookie` e `tldts`, que o MSW usa para cookies). Esse custo não existiria numa API de verdade. Acessibilidade, Boas práticas e SEO ficam em 100.
+- **O que foi feito:** as artes dos slides escondidos do carrossel carregam com `loading="lazy"`, para não disputar banda com a imagem principal (LCP). E `modulepreload` do chunk do MSW no HTML, injetado no build por um plugin do `vite.config.ts` só quando `VITE_ENABLE_MOCKS=true`. Ele baixa em paralelo com o bundle principal em vez de esperar o `index.js` executar (cerca de 200 ms a menos no LCP mobile).
 - **O que não foi feito, e por quê:** trocar `tough-cookie` por um stub tiraria bytes, mas mexe na parte interna do MSW, que guarda cookies com ele. Renderizar antes do worker exigiria que o Axios esperasse o MSW, ligando a camada de API aos mocks, o que as regras do projeto proíbem. Um shell estático no HTML não ajudaria, porque o LCP é a arte do NFT ou o hero, que dependem dos dados.
 
 ## Decisões
