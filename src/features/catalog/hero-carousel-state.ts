@@ -34,6 +34,15 @@ export function useHeroCarousel(count: number) {
   const start = useRef<{ x: number; pointerId: number } | null>(null);
   const dragged = useRef(false);
   const playing = !reducedMotion && !hovering && !focused && offset === null;
+  // Artes dos outros slides só depois do load: não disputam banda com a imagem principal (LCP).
+  const [loadRest, setLoadRest] = useState(() => document.readyState === "complete");
+
+  useEffect(() => {
+    if (loadRest) return;
+    const onLoad = () => setLoadRest(true);
+    window.addEventListener("load", onLoad, { once: true });
+    return () => window.removeEventListener("load", onLoad);
+  }, [loadRest]);
 
   useEffect(() => {
     if (!playing) return;
@@ -87,6 +96,7 @@ export function useHeroCarousel(count: number) {
     playing,
     /** Deslocamento do arraste em px (null fora do arraste). */
     offset,
+    loadRest,
     /** Props do contêiner: arraste, e pausa no hover (mouse) e com o foco dentro do carrossel. */
     rootProps: {
       onPointerDown,

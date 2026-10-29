@@ -9,7 +9,7 @@ Gerado por `npm run lighthouse` em 2026-10-29.
 
 | Tela | Perfil | Performance | Acessibilidade | Boas práticas | SEO | FCP (ms) | LCP (ms) | CLS | TBT (ms) | Performance por execução |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Início | mobile | 82 | 100 | 100 | 100 | 771 | 4417 | 0 | 190 | 83 / 82 / 80 |
-| Início | desktop | 99 | 100 | 100 | 100 | 226 | 916 | 0.001 | 0 | 99 / 99 / 99 |
-| Detalhe | mobile | 82 | 100 | 100 | 100 | 771 | 4191 | 0 | 235 | 82 / 82 / 85 |
-| Detalhe | desktop | 99 | 100 | 100 | 100 | 224 | 921 | 0 | 0 | 99 / 99 / 99 |
+| Início | mobile | 86 | 100 | 100 | 100 | 773 | 4164 | 0 | 105 | 86 / 85 / 86 |
+| Início | desktop | 99 | 100 | 100 | 100 | 221 | 878 | 0.001 | 0 | 99 / 99 / 99 |
+| Detalhe | mobile | 87 | 100 | 100 | 100 | 764 | 4017 | 0 | 46 | 87 / 86 / 87 |
+| Detalhe | desktop | 99 | 100 | 100 | 100 | 216 | 849 | 0 | 0 | 99 / 99 / 99 |

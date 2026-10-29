@@ -231,18 +231,19 @@ Isolamento: cada teste abre um contexto novo (storage e service worker limpos) c
 
 | Tela | Perfil | Performance | Acessibilidade | Boas práticas | SEO | LCP | CLS | TBT |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| Início | mobile | 82 | 100 | 100 | 100 | 4,4 s | 0 | 190 ms |
+| Início | mobile | 86 | 100 | 100 | 100 | 4,2 s | 0 | 105 ms |
 | Início | desktop | 99 | 100 | 100 | 100 | 0,9 s | 0,001 | 0 ms |
-| Detalhe | mobile | 82 | 100 | 100 | 100 | 4,2 s | 0 | 235 ms |
-| Detalhe | desktop | 99 | 100 | 100 | 100 | 0,9 s | 0 | 0 ms |
+| Detalhe | mobile | 87 | 100 | 100 | 100 | 4,0 s | 0 | 46 ms |
+| Detalhe | desktop | 99 | 100 | 100 | 100 | 0,8 s | 0 | 0 ms |
 
-As medições locais variam com a carga da máquina. Com a máquina livre, o mobile mediu 86 (Início) e 87 (Detalhe), com TBT abaixo de 75 ms. Na rodada acima havia outros servidores de desenvolvimento ativos, e o Detalhe, que não mudou entre as duas rodadas, caiu na mesma proporção que o Início. O `summary.md` e os relatórios versionados são desta última rodada.
+As medições locais variam alguns pontos com a carga da máquina. Para comparar versões, meço as duas na mesma sessão: foi assim que apareceu a regressão do carrossel descrita abaixo.
 
 Metas: Performance ≥ 90, Acessibilidade ≥ 95, Boas práticas ≥ 95, SEO ≥ 90.
 
 - **Desktop** passa em tudo. O CLS de 0,18 no Detalhe vinha do skeleton, mais baixo que a página carregada: o rodapé aparecia na tela e era empurrado. O skeleton agora ocupa pelo menos a altura da viewport.
-- **Mobile fica entre 82 e 87 de Performance**, abaixo da meta. A causa é o LCP de cerca de 4 s no 4G lento simulado: a app só renderiza depois que o MSW inicia, e o chunk do MSW tem cerca de 170 kB comprimidos (perto de 40% do JS da primeira tela, com `tough-cookie` e `tldts`, que o MSW usa para cookies). Esse custo não existiria numa API de verdade. Acessibilidade, Boas práticas e SEO ficam em 100.
-- **O que foi feito:** as artes dos slides escondidos do carrossel carregam com `loading="lazy"`, para não disputar banda com a imagem principal (LCP). E `modulepreload` do chunk do MSW no HTML, injetado no build por um plugin do `vite.config.ts` só quando `VITE_ENABLE_MOCKS=true`. Ele baixa em paralelo com o bundle principal em vez de esperar o `index.js` executar (cerca de 200 ms a menos no LCP mobile).
+- **Mobile fica em 86 a 87 de Performance**, abaixo da meta. A causa é o LCP de cerca de 4 s no 4G lento simulado: a app só renderiza depois que o MSW inicia, e o chunk do MSW tem cerca de 170 kB comprimidos (perto de 40% do JS da primeira tela, com `tough-cookie` e `tldts`, que o MSW usa para cookies). Esse custo não existiria numa API de verdade. Acessibilidade, Boas práticas e SEO ficam em 100.
+- **Regressão do carrossel, corrigida:** medindo na mesma sessão, o carrossel derrubou o Início mobile de 85 para 82, com LCP cerca de 160 ms maior. Dois motivos. As artes dos slides 2 e 3 carregavam junto com a primeira: o `loading="lazy"` não adianta, porque o Chrome carrega de imediato imagens lazy a menos de uns 1.250 px da tela. E a arte de 1024 px do hero desktop, escondida no mobile, era baixada com prioridade alta (55 kB), o que já acontecia antes do carrossel. Agora as artes dos outros slides só entram depois do evento `load`, e só a versão do hero visível na largura atual pede a primeira arte com prioridade; a versão escondida fica `lazy` e, com `display: none`, nem é baixada. Resultado na mesma sessão: 82 → 86 no Início e 84 → 87 no Detalhe.
+- **O que mais foi feito:** `modulepreload` do chunk do MSW no HTML, injetado no build por um plugin do `vite.config.ts` só quando `VITE_ENABLE_MOCKS=true`. Ele baixa em paralelo com o bundle principal em vez de esperar o `index.js` executar (cerca de 200 ms a menos no LCP mobile).
 - **O que não foi feito, e por quê:** trocar `tough-cookie` por um stub tiraria bytes, mas mexe na parte interna do MSW, que guarda cookies com ele. Renderizar antes do worker exigiria que o Axios esperasse o MSW, ligando a camada de API aos mocks, o que as regras do projeto proíbem. Um shell estático no HTML não ajudaria, porque o LCP é a arte do NFT ou o hero, que dependem dos dados.
 
 ## Decisões

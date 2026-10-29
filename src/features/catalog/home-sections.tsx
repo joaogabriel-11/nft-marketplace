@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import arrowRight from "@/assets/icons/arrow-right.svg";
 import mobileArrow from "@/assets/icons/m-arrow-right.svg";
 import heroMaskMobile from "@/assets/icons/m-hero-mask.svg";
@@ -24,6 +25,8 @@ const artSrcSet = (key: keyof typeof ART) => `${art(key)} 512w, ${art(key, 1024)
  */
 export function HomeHero() {
   const carousel = useHeroCarousel(HERO_SLIDES.length);
+  // md do Tailwind (48rem): qual das duas versões do hero está visível.
+  const [desktop] = useState(() => window.matchMedia("(min-width: 48rem)").matches);
   const next = HERO_SLIDES[(carousel.index + 1) % HERO_SLIDES.length];
   return (
     <>
@@ -60,6 +63,8 @@ export function HomeHero() {
           index={carousel.index}
           playing={carousel.playing}
           offset={carousel.offset}
+          loadRest={carousel.loadRest}
+          priority={desktop}
           src={(slide) => art(slide.art, 1024)}
           srcSet={(slide) => artSrcSet(slide.art)}
           sizes="450px"
@@ -98,6 +103,8 @@ export function HomeHero() {
                 index={carousel.index}
                 playing={carousel.playing}
                 offset={carousel.offset}
+                loadRest={carousel.loadRest}
+                priority={!desktop}
                 src={(slide) => art(slide.art)}
                 sizes="138px"
                 size={138}
@@ -107,6 +114,7 @@ export function HomeHero() {
               {/* Miniatura decorativa do Figma: prévia do próximo slide. */}
               <img
                 src={art(next.art)}
+                loading={desktop ? "lazy" : undefined}
                 alt=""
                 aria-hidden="true"
                 width={58}

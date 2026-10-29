@@ -10,6 +10,8 @@ export function HeroSlides({
   index,
   playing,
   offset,
+  loadRest,
+  priority,
   className,
   imageClassName,
   sizes,
@@ -20,6 +22,10 @@ export function HeroSlides({
   index: number;
   playing: boolean;
   offset: number | null;
+  /** Artes dos outros slides já podem carregar (depois do load da página). */
+  loadRest: boolean;
+  /** Esta versão do hero é a visível na largura atual: só ela pede a primeira arte com prioridade. */
+  priority: boolean;
   className?: string;
   imageClassName?: string;
   sizes: string;
@@ -50,20 +56,22 @@ export function HeroSlides({
               className="size-full shrink-0"
             >
               <Link to="/nfts/$id" params={{ id: slide.id }} draggable={false} className="block size-full">
-                <img
-                  src={src(slide)}
-                  srcSet={srcSet?.(slide)}
-                  sizes={sizes}
-                  alt={slide.alt}
-                  width={size}
-                  height={size}
-                  // Só a primeira arte é a imagem principal da página (LCP). As outras ficam fora da tela,
-                  // à direita no trilho, e só carregam quando o carrossel chega perto delas.
-                  fetchPriority={position === 0 ? "high" : "low"}
-                  loading={position === 0 ? "eager" : "lazy"}
-                  draggable={false}
-                  className={cn("size-full object-cover", imageClassName)}
-                />
+                {(position === 0 || loadRest) && (
+                  <img
+                    src={src(slide)}
+                    srcSet={srcSet?.(slide)}
+                    sizes={sizes}
+                    alt={slide.alt}
+                    width={size}
+                    height={size}
+                    // A primeira arte da versão visível é a imagem principal (LCP). Na versão escondida
+                    // (display: none), lazy faz o navegador nem baixar a imagem.
+                    fetchPriority={position === 0 && priority ? "high" : "low"}
+                    loading={position === 0 && priority ? "eager" : "lazy"}
+                    draggable={false}
+                    className={cn("size-full object-cover", imageClassName)}
+                  />
+                )}
               </Link>
             </div>
           );
