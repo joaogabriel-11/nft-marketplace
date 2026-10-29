@@ -60,6 +60,9 @@ test.describe("catálogo", () => {
   });
 
   test("cenário de falha transitória: primeira chamada 503, a seguinte recupera", async ({ api }) => {
+    // A Início também busca /nfts: sem esperar, a página pode consumir a falha da primeira chamada
+    // (acontecia na demo, onde os chunks chegam mais tarde).
+    await expect(api.locator("#catalogo [role=status]")).toHaveText(/NFTs encontrados/);
     await setScenario(api, "flaky");
     expect((await call(api, "GET", "/nfts")).status).toBe(503);
     expect((await call(api, "GET", "/nfts")).status).toBe(200);

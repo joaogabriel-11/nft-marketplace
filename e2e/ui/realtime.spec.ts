@@ -73,6 +73,9 @@ test("checkout: evento durante a revisão bloqueia a cotação desatualizada", a
 test("eventos duplicados ou antigos não regridem o estado", async ({ page }) => {
   await openApp(page, "/nfts/emerald-ape-042");
   await waitConnected(page);
+  // Socket conectado não garante a tela montada (com chunks lentos, como na demo, o detalhe monta
+  // depois). Se o evento chegasse antes, a edição padrão seria outra: a 1/50 já não teria o preço do card.
+  await expect(detailPrice(page)).toContainText("1.19 ETH");
   await call(page, "PATCH", editionPath, { body: { priceEth: "1.5" } });
   await expect(detailPrice(page)).toContainText("1.5 ETH");
   await call(page, "PATCH", editionPath, { body: { priceEth: "1.8" } });
@@ -89,6 +92,7 @@ test("eventos duplicados ou antigos não regridem o estado", async ({ page }) =>
 test("eventos perdidos durante a queda são reconciliados pela REST ao reconectar", async ({ page }) => {
   await openApp(page, "/nfts/emerald-ape-042");
   await waitConnected(page);
+  await expect(detailPrice(page)).toContainText("1.19 ETH");
   await call(page, "POST", "/__dev/realtime/pause", { body: { paused: true } });
   await call(page, "PATCH", editionPath, { body: { priceEth: "2.05" } });
   await page.waitForTimeout(400);
