@@ -12,12 +12,8 @@ export const imageUrl = (key: string) => `/images/nfts/${key}-512.webp`;
 
 const RARE_ATTRIBUTES = ["Raro", "Lendário"];
 
-const GALLERY_VIEWS = [
-  { view: "full", label: "obra completa" },
-  { view: "top", label: "detalhe superior" },
-  { view: "center", label: "detalhe central" },
-  { view: "bottom", label: "detalhe inferior" },
-] as const;
+/** Posições da galeria no Figma. Cada NFT tem uma única arte, mostrada inteira em todas elas. */
+const GALLERY_SIZE = 4;
 
 export function maxPerOrder(edition: EditionRecord) {
   const cap = edition.supply === null ? OPEN_MAX_PER_ORDER : LIMITED_MAX_PER_ORDER;
@@ -59,11 +55,7 @@ export function toDetail(nft: NftRecord): NftDetail {
     ...toSummary(nft),
     summary: nft.summary,
     description: nft.description,
-    images: GALLERY_VIEWS.map(({ view, label }) => ({
-      url: imageUrl(nft.imageKey),
-      alt: `${nft.name}, ${label}`,
-      view,
-    })),
+    images: Array.from({ length: GALLERY_SIZE }, () => ({ url: imageUrl(nft.imageKey), alt: nft.name })),
     attributes: nft.attributes,
     contractAddress: nft.contractAddress,
     royaltyPercent: nft.royaltyPercent,

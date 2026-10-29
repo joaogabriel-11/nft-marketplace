@@ -1,17 +1,9 @@
 import { useState } from "react";
-import type { ImageView, NftDetail } from "@/api/contracts";
+import type { NftDetail } from "@/api/contracts";
 import zoomIcon from "@/assets/icons/zoom.svg";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { nftImageSrcSet } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-/** Recortes de detalhe da mesma arte (a API descreve a vista; a UI aplica o enquadramento). */
-const VIEW_STYLE: Record<ImageView, string> = {
-  full: "",
-  top: "scale-[1.7] origin-top",
-  center: "scale-[1.7] origin-center",
-  bottom: "scale-[1.7] origin-bottom",
-};
 
 export function GalleryImage({
   image,
@@ -35,28 +27,34 @@ export function GalleryImage({
         height={512}
         loading={priority ? "eager" : "lazy"}
         fetchPriority={priority ? "high" : undefined}
-        className={cn("size-full object-cover", VIEW_STYLE[image.view])}
+        className="size-full object-cover"
       />
     </div>
   );
 }
 
-/** Galeria desktop do Figma: 4 miniaturas à esquerda, imagem principal de 444px e lupa. */
+/**
+ * Galeria desktop do Figma: 4 miniaturas à esquerda, imagem principal de 444px e lupa. A arte aparece
+ * inteira em todas; a selecionada tem borda primary e as outras ficam esmaecidas (estado além da cor).
+ */
 export function NftGallery({ nft }: { nft: NftDetail }) {
   const [selected, setSelected] = useState(0);
   const current = nft.images[selected] ?? nft.images[0];
 
   return (
     <div className="flex shrink-0 gap-7">
-      <div role="group" aria-label="Vistas da obra" className="flex w-[100px] shrink-0 flex-col gap-4">
+      <div role="group" aria-label={`Imagens de ${nft.name}`} className="flex w-[100px] shrink-0 flex-col gap-4">
         {nft.images.map((image, index) => (
           <button
-            key={image.view}
+            key={index}
             type="button"
-            aria-label={`Mostrar ${image.alt}`}
+            aria-label={`Mostrar imagem ${index + 1} de ${nft.images.length}`}
             aria-pressed={index === selected}
             onClick={() => setSelected(index)}
-            className={cn("size-[100px] overflow-hidden rounded-[8px] bg-surface-card", index === selected && "border border-primary")}
+            className={cn(
+              "size-[100px] overflow-hidden rounded-[8px] border-2 bg-surface-card transition-opacity motion-reduce:transition-none",
+              index === selected ? "border-primary" : "border-transparent opacity-60 hover:opacity-100",
+            )}
           >
             <GalleryImage image={{ ...image, alt: "" }} sizes="100px" className="size-full rounded-[8px]" />
           </button>
